@@ -5,7 +5,10 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import {
+  defaultRangeExtractor,
+  useVirtualizer,
+} from '@tanstack/react-virtual';
 import {
   type CSSProperties,
   useEffect,
@@ -36,6 +39,7 @@ export default function App() {
   const [pausedAt, setPausedAt] = useState<number | null>(null);
   const [clearedBefore, setClearedBefore] = useState(0);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [pinLatest, setPinLatest] = useState(true);
   const [selectedRecord, setSelectedRecord] = useState<LogRecord | null>(null);
   const [copied, setCopied] = useState(false);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
@@ -164,6 +168,14 @@ export default function App() {
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 38,
     overscan: 12,
+    rangeExtractor: (range) => {
+      const indexes = defaultRangeExtractor(range);
+      const latestIndex = rows.length - 1;
+      if (pinLatest && latestIndex >= 0 && !indexes.includes(latestIndex)) {
+        indexes.push(latestIndex);
+      }
+      return indexes;
+    },
   });
 
   useEffect(() => {
@@ -290,6 +302,15 @@ export default function App() {
           <span>Autoscroll</span>
         </label>
 
+        <label className="toggle-control">
+          <input
+            type="checkbox"
+            checked={pinLatest}
+            onChange={(event) => setPinLatest(event.target.checked)}
+          />
+          <span>Blokuj najnowszy</span>
+        </label>
+
         <button className={`button ${pausedAt !== null ? 'button-active' : ''}`} onClick={togglePause}>
           {pausedAt === null ? 'Ⅱ Pause' : `▶ Resume${newWhilePaused ? ` (${newWhilePaused})` : ''}`}
         </button>
@@ -381,6 +402,7 @@ export default function App() {
                         row.original.parseStatus === 'unmatched' ? 'row-unmatched' : '',
                         generationStart ? 'generation-start' : '',
                         latestVisible ? 'row-latest' : '',
+                        latestVisible && pinLatest ? 'row-pinned' : '',
                       ].filter(Boolean).join(' ')}
                       style={{
                         transform: `translateY(${virtualRow.start}px)`,

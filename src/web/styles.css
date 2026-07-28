@@ -550,13 +550,14 @@ button {
 }
 
 .log-table tbody tr.row-latest {
-  z-index: 3;
-  height: 20vh;
-  height: 20dvh;
-  height: max(
+  --latest-row-height: max(
     20dvh,
     calc(100cqh - 34px - var(--latest-row-start, 0px))
   );
+  z-index: 3;
+  height: 20vh;
+  height: 20dvh;
+  height: var(--latest-row-height);
   min-height: 120px;
   background:
     linear-gradient(90deg, rgba(67, 215, 180, 0.1), transparent 48%),
@@ -564,6 +565,12 @@ button {
   box-shadow:
     inset 0 3px 0 var(--accent),
     inset 0 -1px 0 var(--border-bright);
+}
+
+.log-table tbody tr.row-pinned {
+  position: sticky;
+  top: calc(100cqh - var(--latest-row-height));
+  transform: none !important;
 }
 
 .log-table tbody tr.row-latest:hover {

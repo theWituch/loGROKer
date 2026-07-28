@@ -100,6 +100,8 @@ pokazuje komunikat, a ostatni poprawny parser nadal works.
 - does not hide orphaned lines or records unmatched by GROK;
 - shows a line-count badge for multiline fields, and the full log can be
   opened with a double-click or button and copied;
+- the “Pin latest” option pins the last record to the bottom edge, so it
+  remains visible while browsing older logs;
 - column visibility is stored locally in the browser;
 - search, level filtering, pause, autoscroll, and clearing the view work
   in the browser.

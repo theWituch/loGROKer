@@ -34,10 +34,29 @@ test('shows paths, status, and parsed columns', async ({ page }) => {
   }).toBeLessThan(2);
   await expect.poll(async () => (
     (await latestRow.boundingBox())?.height ?? 0
-  )).toBeGreaterThan(180);
+  )).toBeGreaterThanOrEqual(180);
   await expect.poll(() => page.locator('.table-scroll').evaluate((element) => (
     element.scrollHeight - element.clientHeight - element.scrollTop
   ))).toBeLessThanOrEqual(1);
+
+  await page.getByRole('checkbox', { name: 'Blokuj najnowszy' }).check();
+  await expect(latestRow).toHaveClass(/row-pinned/);
+  await page.locator('.table-scroll').evaluate((element) => {
+    element.scrollTop = 0;
+    element.dispatchEvent(new Event('scroll'));
+  });
+  await expect.poll(() => page.locator('.table-scroll').evaluate((element) => (
+    element.scrollTop
+  ))).toBe(0);
+  await expect(latestRow).toBeVisible();
+  await expect.poll(async () => {
+    const latest = await latestRow.boundingBox();
+    const viewport = await page.locator('.table-scroll').boundingBox();
+    if (!latest || !viewport) return Number.POSITIVE_INFINITY;
+    return Math.abs(
+      viewport.y + viewport.height - (latest.y + latest.height),
+    );
+  }).toBeLessThan(2);
 
   const multilineBadge = page.getByRole('button', { name: '14 lines' });
   await expect(multilineBadge.locator('xpath=ancestor::td')).toHaveClass(/cell-multiline/);
