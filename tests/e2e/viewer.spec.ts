@@ -21,6 +21,22 @@ test('shows paths, status, and GROK columns', async ({ page }) => {
   await expect.poll(() => page.locator('.table-scroll').evaluate((element) => (
     element.scrollWidth - element.clientWidth
   ))).toBeLessThanOrEqual(0);
+  const latestRow = page.locator('.log-table tbody tr.row-latest');
+  await expect(latestRow).toHaveCount(1);
+  await expect.poll(async () => {
+    const latest = await latestRow.boundingBox();
+    const viewport = await page.locator('.table-scroll').boundingBox();
+    if (!latest || !viewport) return Number.POSITIVE_INFINITY;
+    return Math.abs(
+      viewport.y + viewport.height - (latest.y + latest.height),
+    );
+  }).toBeLessThan(2);
+  await expect.poll(async () => (
+    (await latestRow.boundingBox())?.height ?? 0
+  )).toBeGreaterThan(180);
+  await expect.poll(() => page.locator('.table-scroll').evaluate((element) => (
+    element.scrollHeight - element.clientHeight - element.scrollTop
+  ))).toBeLessThanOrEqual(1);
 
   await page.getByRole('button', { name: '14 lines' }).click();
   const details = page.getByRole('dialog', { name: 'Log record details' });

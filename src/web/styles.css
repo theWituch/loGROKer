@@ -386,6 +386,7 @@ button {
   flex: 1;
   overflow: auto;
   scrollbar-color: #34485a #0a121a;
+  container-type: size;
 }
 
 .log-table {
@@ -436,6 +437,7 @@ button {
 .log-table tbody tr {
   position: absolute;
   left: 0;
+  height: 38px;
   border-bottom: 1px solid rgba(34, 51, 65, 0.58);
 }
 
@@ -543,6 +545,50 @@ button {
 
 .generation-start {
   box-shadow: inset 0 2px 0 #376b73;
+}
+
+.log-table tbody tr.row-latest {
+  z-index: 3;
+  height: 20vh;
+  height: 20dvh;
+  height: max(
+    20dvh,
+    calc(100cqh - 34px - var(--latest-row-start, 0px))
+  );
+  min-height: 120px;
+  background:
+    linear-gradient(90deg, rgba(67, 215, 180, 0.1), transparent 48%),
+    #101f2b;
+  box-shadow:
+    inset 0 3px 0 var(--accent),
+    inset 0 -1px 0 var(--border-bright);
+}
+
+.log-table tbody tr.row-latest:hover {
+  background:
+    linear-gradient(90deg, rgba(67, 215, 180, 0.14), transparent 55%),
+    #142733 !important;
+}
+
+.row-latest td {
+  align-items: flex-start;
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+
+.row-latest td:last-child {
+  overflow: auto;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: pre-wrap;
+}
+
+.row-latest .unmatched-cell span {
+  overflow: auto;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .multiline-badge {

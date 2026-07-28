@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
+  type CSSProperties,
   useEffect,
   useMemo,
   useRef,
@@ -175,7 +176,10 @@ export default function App() {
 
   useEffect(() => {
     if (autoScroll && pausedAt === null && rows.length > 0) {
-      rowVirtualizer.scrollToIndex(rows.length - 1, { align: 'end' });
+      const frame = requestAnimationFrame(() => {
+        rowVirtualizer.scrollToIndex(rows.length - 1, { align: 'end' });
+      });
+      return () => cancelAnimationFrame(frame);
     }
   }, [autoScroll, pausedAt, rowVirtualizer, rows.length]);
 
@@ -364,18 +368,22 @@ export default function App() {
                   const row = rows[virtualRow.index];
                   const previous = virtualRow.index > 0 ? rows[virtualRow.index - 1].original : null;
                   const generationStart = previous && previous.generation !== row.original.generation;
+                  const latestVisible = virtualRow.index === rows.length - 1;
                   return (
                     <tr
                       key={row.id}
+                      ref={rowVirtualizer.measureElement}
+                      data-index={virtualRow.index}
                       className={[
                         commonLevelClass(row.original.fields.level),
                         row.original.parseStatus === 'unmatched' ? 'row-unmatched' : '',
                         generationStart ? 'generation-start' : '',
+                        latestVisible ? 'row-latest' : '',
                       ].filter(Boolean).join(' ')}
                       style={{
-                        height: virtualRow.size,
                         transform: `translateY(${virtualRow.start}px)`,
-                      }}
+                        '--latest-row-start': `${virtualRow.start}px`,
+                      } as CSSProperties}
                       onDoubleClick={() => openRecord(row.original)}
                     >
                       {row.original.parseStatus === 'unmatched' ? (
