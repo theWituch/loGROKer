@@ -1,0 +1,33 @@
+2026-07-28T11:49:44.498+02:00 INFO    [werkzeug] [pid=22720 thread="Thread-28 (process_request_thread)"] 127.0.0.1 - - [28/Jul/2026 11:49:44] "GET /cdn/all/both/combatreport/hitpoints1.png HTTP/1.1" 200 -
+2026-07-28T11:49:44.959+02:00 INFO    [werkzeug] [pid=22720 thread="Thread-29 (process_request_thread)"] 127.0.0.1 - - [28/Jul/2026 11:49:44] "GET /cdn/all/both/combatreport/hitpoints2.png HTTP/1.1" 200 -
+2026-07-28T11:50:04.701+02:00 INFO    [test.app.function.dataStoreDemo.counterOne.api] [pid=22720 thread="Thread-30 (process_request_thread)"] Counter one toolbar filter started url=http://localhost:8085/?view=militaryAdvisor&oldView=militaryAdvisorDetailedReportView&cityId=77673&backgroundView=city&currentCityId=77673&templateView=militaryAdvisorDetailedReportView&currentTab=combatReports&actionRequest=48e5574395ffaec79676d12ebc636394&ajax=1 html_length=42046
+2026-07-28T11:50:04.706+02:00 WARNING [test.app.function.dataStoreDemo.counterOne.api] [pid=22720 thread="Thread-30 (process_request_thread)"] Counter one toolbar filter skipped: selector div#GF_toolbar li.serverTime not found
+2026-07-28T11:50:04.708+02:00 INFO    [werkzeug] [pid=22720 thread="Thread-30 (process_request_thread)"] 127.0.0.1 - - [28/Jul/2026 11:50:04] "POST /?view=militaryAdvisor&oldView=militaryAdvisorDetailedReportView&cityId=77673&backgroundView=city&currentCityId=77673&templateView=militaryAdvisorDetailedReportView&currentTab=combatReports&actionRequest=48e5574395ffaec79676d12ebc636394&ajax=1 HTTP/1.1" 200 -
+2026-07-28T11:50:12.338+02:00 INFO    [test.app.function.dataStoreDemo.counterOne.api] [pid=22720 thread="Thread-31 (process_request_thread)"] Counter one toolbar filter started url=http://localhost:8085/?view=updateGlobalData&backgroundView=city&currentCityId=77673&templateView=militaryAdvisor&actionRequest=48e5574395ffaec79676d12ebc636394&ajax=1 html_length=15022
+2026-07-28T11:50:12.339+02:00 WARNING [test.app.function.dataStoreDemo.counterOne.api] [pid=22720 thread="Thread-31 (process_request_thread)"] Counter one toolbar filter skipped: selector div#GF_toolbar li.serverTime not found
+2026-07-28T11:50:12.340+02:00 INFO    [werkzeug] [pid=22720 thread="Thread-31 (process_request_thread)"] 127.0.0.1 - - [28/Jul/2026 11:50:12] "POST /?view=updateGlobalData&backgroundView=city&currentCityId=77673&templateView=militaryAdvisor&actionRequest=48e5574395ffaec79676d12ebc636394&ajax=1 HTTP/1.1" 200 -
+2026-07-28T11:51:12.670+02:00 INFO    [test.app.function.dataStoreDemo.counterOne.api] [pid=22720 thread="Thread-32 (process_request_thread)"] Counter one toolbar filter started url=http://localhost:8085/?view=updateGlobalData&backgroundView=city&currentCityId=77673&templateView=militaryAdvisor&actionRequest=48e5574395ffaec79676d12ebc636394&ajax=1 html_length=13237
+2026-07-28T11:51:12.672+02:00 WARNING [test.app.function.dataStoreDemo.counterOne.api] [pid=22720 thread="Thread-32 (process_request_thread)"] Counter one toolbar filter skipped: selector div#GF_toolbar li.serverTime not found
+2026-07-28T11:51:12.673+02:00 INFO    [werkzeug] [pid=22720 thread="Thread-32 (process_request_thread)"] 127.0.0.1 - - [28/Jul/2026 11:51:12] "POST /?view=updateGlobalData&backgroundView=city&currentCityId=77673&templateView=militaryAdvisor&actionRequest=48e5574395ffaec79676d12ebc636394&ajax=1 HTTP/1.1" 200 -
+2026-07-28T11:52:12.438+02:00 INFO    [test.app.function.dataStoreDemo.counterOne.api] [pid=22720 thread="Thread-33 (process_request_thread)"] Counter one toolbar filter started url=http://localhost:8085/?view=updateGlobalData&backgroundView=city&currentCityId=77673&templateView=militaryAdvisor&actionRequest=48e5574395ffaec79676d12ebc636394&ajax=1 html_length=13443
+2026-07-28T11:52:12.440+02:00 WARNING [test.app.function.dataStoreDemo.counterOne.api] [pid=22720 thread="Thread-33 (process_request_thread)"] Counter one toolbar filter skipped: selector div#GF_toolbar li.serverTime not found
+2026-07-28T11:52:12.444+02:00 INFO    [werkzeug] [pid=22720 thread="Thread-33 (process_request_thread)"] 127.0.0.1 - - [28/Jul/2026 11:52:12] "POST /?view=updateGlobalData&backgroundView=city&currentCityId=77673&templateView=militaryAdvisor&actionRequest=48e5574395ffaec79676d12ebc636394&ajax=1 HTTP/1.1" 200 -
+2026-07-28T11:53:12.444+02:00 ERROR   [werkzeug] [pid=22720 thread="Thread-33 (process_request_thread)"] Could not send notification through telegram
+Traceback (most recent call last):
+  File "E:\_IKARIAM\TestApp\test-app\test.app\helpers\botComm.py", line 153, in send_notification
+    results[provider.name] = provider.send(session, message)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\_IKARIAM\TestApp\test-app\test.app\helpers\botComm.py", line 52, in send
+    response = get(
+               ^^^^
+  File "E:\_IKARIAM\TestApp\test-app\tests\test.app\helpers\test_bot_comm.py", line 129, in <lambda>
+    lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("Telegram down")),
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\_IKARIAM\TestApp\test-app\tests\test.app\helpers\test_bot_comm.py", line 129, in <genexpr>
+    lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("Telegram down")),
+RuntimeError: Telegram down
+2026-07-28T11:53:12.444+02:00 WARNING [werkzeug] [pid=22720 thread="Thread-33 (process_request_thread)"] Telegram down
+2026-07-28T11:53:12.444+02:00 INFO    [werkzeug] [pid=22720 thread="Thread-33 (process_request_thread)"] OUTGOING NOTIFICATION: pid:51620
+Server:s1, World:world, Player:player
+City changed
+2026-07-28T11:53:12.444+02:00 INFO    [werkzeug] [pid=22720 thread="Thread-33 (process_request_thread)"] Notification sent
