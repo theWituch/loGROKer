@@ -10,7 +10,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: `npm start -- --log ./log.log --grok ./pattern.cfg --port ${port}`,
+    command: `npm start -- --log ./log.log --config ./config.yml --port ${port}`,
     port,
     reuseExistingServer: true,
   },

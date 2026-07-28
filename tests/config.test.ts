@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parseGrokConfig } from '../src/server/grok-config';
+import { parseConfig } from '../src/server/config';
 
-describe('parseGrokConfig', () => {
+describe('parseConfig', () => {
   it('reads the main expression and custom definitions', () => {
-    const config = parseGrokConfig(`
+    const config = parseConfig(`
 match: >-
   ^%{CUSTOM:value}$
 patterns:
@@ -17,7 +17,7 @@ patterns:
   });
 
   it('reads multiline configuration and fills safe defaults', () => {
-    expect(parseGrokConfig(`
+    expect(parseConfig(`
 match: "%{GREEDYDATA:message}"
 patterns: {}
 multiline:
@@ -40,19 +40,19 @@ multiline:
   });
 
   it('allows explicitly disabling multiline', () => {
-    expect(parseGrokConfig('match: "%{WORD:x}"\nmultiline: false'))
+    expect(parseConfig('match: "%{WORD:x}"\nmultiline: false'))
       .toMatchObject({ multiline: null });
   });
 
   it('rejects invalid multiline settings', () => {
-    expect(() => parseGrokConfig(`
+    expect(() => parseConfig(`
 match: "%{WORD:x}"
 multiline:
   pattern: "^start"
   what: somewhere
 `)).toThrow(/what/);
 
-    expect(() => parseGrokConfig(`
+    expect(() => parseConfig(`
 match: "%{WORD:x}"
 multiline:
   pattern: "^start"
@@ -61,12 +61,12 @@ multiline:
   });
 
   it('rejects unknown fields', () => {
-    expect(() => parseGrokConfig('match: "%{WORD:x}"\nextra: true'))
+    expect(() => parseConfig('match: "%{WORD:x}"\nextra: true'))
       .toThrow(/Unknown parser configuration field/);
   });
 
   it('rejects multiline definitions', () => {
-    expect(() => parseGrokConfig(`
+    expect(() => parseConfig(`
 match: "%{WORD:x}"
 patterns:
   CUSTOM: |

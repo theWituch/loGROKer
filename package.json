@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "concurrently -k -n server,web -c blue,green \"npm:dev:server\" \"npm:dev:web\"",
-    "dev:server": "tsx watch src/server/index.ts --log ./log.log --grok ./pattern.cfg --port 3000",
+    "dev:server": "tsx watch src/server/index.ts --log ./log.log --config ./config.yml --port 3000",
     "dev:web": "vite",
     "build": "tsc -p tsconfig.server.json && vite build",
     "start": "node dist/server/server/index.js",

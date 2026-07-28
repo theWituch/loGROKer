@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 
 export interface CliOptions {
   logPath: string;
-  grokPath: string | null;
+  configPath: string | null;
   port: number;
   initialLines: number;
   maxRecords: number;
@@ -42,7 +42,7 @@ export function parseCli(argv: string[]): CliOptions {
     throw new Error('--tail cannot be greater than --max-records.');
   }
 
-  const known = new Set(['--log', '--grok', '--port', '--tail', '--max-records']);
+  const known = new Set(['--log', '--config', '--port', '--tail', '--max-records']);
   for (const key of values.keys()) {
     if (!known.has(key)) {
       throw new Error(`Unknown argument: ${key}`);
@@ -51,7 +51,9 @@ export function parseCli(argv: string[]): CliOptions {
 
   return {
     logPath: resolve(log),
-    grokPath: values.has('--grok') ? resolve(values.get('--grok') as string) : null,
+    configPath: values.has('--config')
+      ? resolve(values.get('--config') as string)
+      : null,
     port,
     initialLines,
     maxRecords,

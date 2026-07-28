@@ -1,16 +1,16 @@
 import { EventEmitter } from 'node:events';
 import chokidar, { type FSWatcher } from 'chokidar';
 import type {
-  GrokConfig,
   LogRecord,
   MultilineFlushReason,
+  ParserConfig,
   ServerEvent,
   ViewerSnapshot,
   ViewerStatus,
 } from '../shared/contracts.js';
 import { FileTailer, type LineBatch } from './tailer.js';
 import { GrokParserService } from './grok-parser-service.js';
-import { errorMessage, loadGrokConfig } from './grok-config.js';
+import { errorMessage, loadConfig } from './config.js';
 import {
   type AssembledEvent,
   MultilineAssembler,
@@ -22,7 +22,7 @@ const PARSE_BATCH_SIZE = 500;
 
 export interface ViewerServiceOptions {
   logPath: string;
-  grokPath: string | null;
+  configPath: string | null;
   initialLines: number;
   maxRecords: number;
   usePolling: boolean;
@@ -52,7 +52,7 @@ export class ViewerService extends EventEmitter<ViewerServiceEvents> {
   private parserError: string | null = null;
   private state: ViewerStatus['state'] = 'starting';
   private stateMessage = 'Starting viewer…';
-  private activeConfig: GrokConfig | null = null;
+  private activeConfig: ParserConfig | null = null;
 
   constructor(public readonly options: ViewerServiceOptions) {
     super();
@@ -64,8 +64,8 @@ export class ViewerService extends EventEmitter<ViewerServiceEvents> {
   }
 
   async start(): Promise<void> {
-    if (this.options.grokPath) {
-      this.activeConfig = await loadGrokConfig(this.options.grokPath);
+    if (this.options.configPath) {
+      this.activeConfig = await loadConfig(this.options.configPath);
       await this.parser.configure(this.activeConfig);
       this.assembler = createAssembler(this.activeConfig);
     }
@@ -117,8 +117,8 @@ export class ViewerService extends EventEmitter<ViewerServiceEvents> {
     await this.flushAssembler('initial', false);
     this.initializing = false;
 
-    if (this.options.grokPath) {
-      this.watchConfig(this.options.grokPath);
+    if (this.options.configPath) {
+      this.watchConfig(this.options.configPath);
     }
 
     this.state = 'live';
@@ -265,7 +265,7 @@ export class ViewerService extends EventEmitter<ViewerServiceEvents> {
       .on('change', () => this.scheduleConfigReload())
       .on('add', () => this.scheduleConfigReload())
       .on('unlink', () => {
-        this.parserError = 'The GROK configuration file was removed; the last valid pattern remains active.';
+        this.parserError = 'The configuration file was removed; the last valid configuration remains active.';
         this.emitStatus();
       })
       .on('error', (error) => {
@@ -285,14 +285,14 @@ export class ViewerService extends EventEmitter<ViewerServiceEvents> {
   }
 
   private async reloadConfig(): Promise<void> {
-    if (!this.options.grokPath) {
+    if (!this.options.configPath) {
       return;
     }
 
     const previousConfig = this.activeConfig;
     try {
       const sourceBatches = this.collectSourceBatches();
-      const candidate = await loadGrokConfig(this.options.grokPath);
+      const candidate = await loadConfig(this.options.configPath);
       await this.parser.configure(candidate);
       const candidateAssembler = createAssembler(candidate);
       const assembled: AssembledEvent[] = [];
@@ -316,7 +316,7 @@ export class ViewerService extends EventEmitter<ViewerServiceEvents> {
       this.activeConfig = candidate;
       this.parserError = null;
       this.revision += 1;
-      this.stateMessage = 'GROK and multiline configuration reloaded.';
+      this.stateMessage = 'Parser configuration reloaded.';
       this.publish({ type: 'snapshot', data: this.snapshot() });
     } catch (error) {
       if (previousConfig) {
@@ -390,7 +390,7 @@ export class ViewerService extends EventEmitter<ViewerServiceEvents> {
       state: this.state,
       message: this.stateMessage,
       logPath: this.options.logPath,
-      grokPath: this.options.grokPath,
+      configPath: this.options.configPath,
       parserMode: this.activeConfig ? 'grok' : 'raw',
       parserError: this.parserError,
       generation: this.tailer.generation,
@@ -406,7 +406,7 @@ export class ViewerService extends EventEmitter<ViewerServiceEvents> {
   }
 }
 
-function createAssembler(config: GrokConfig): MultilineAssembler | null {
+function createAssembler(config: ParserConfig): MultilineAssembler | null {
   return config.multiline ? new MultilineAssembler(config.multiline) : null;
 }
 

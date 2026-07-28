@@ -17,7 +17,7 @@ try {
   });
   console.log(`LoGROKer: ${address}`);
   console.log(`Log: ${options.logPath}`);
-  console.log(`GROK: ${options.grokPath ?? 'brak (raw mode)'}`);
+  console.log(`Config: ${options.configPath ?? 'brak (raw mode)'}`);
 
   let closing = false;
   const close = async () => {

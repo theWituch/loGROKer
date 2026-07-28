@@ -3,10 +3,10 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import grok from '@okuryu/grok-js';
-import type { GrokConfig } from '../shared/contracts.js';
+import type { ParserConfig } from '../shared/contracts.js';
 
 type WorkerRequest =
-  | { id: number; type: 'configure'; config: GrokConfig }
+  | { id: number; type: 'configure'; config: ParserConfig }
   | { id: number; type: 'parse'; lines: string[] }
   | { id: number; type: 'classify'; lines: string[] };
 
@@ -61,7 +61,7 @@ parentPort.on('message', async (message: WorkerRequest) => {
   }
 });
 
-async function compile(config: GrokConfig) {
+async function compile(config: ParserConfig) {
   const collection = grok.loadDefaultSync();
   const entries = Object.entries(config.patterns);
 

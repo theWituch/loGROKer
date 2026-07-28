@@ -30,7 +30,7 @@ export interface ViewerStatus {
   state: ViewerState;
   message: string;
   logPath: string;
-  grokPath: string | null;
+  configPath: string | null;
   parserMode: 'raw' | 'grok';
   parserError: string | null;
   generation: number;
@@ -55,7 +55,7 @@ export type ServerEvent =
   | { type: 'append'; data: { records: LogRecord[]; fields: string[] } }
   | { type: 'status'; data: ViewerStatus };
 
-export interface GrokConfig {
+export interface ParserConfig {
   match: string;
   patterns: Record<string, string>;
   multiline: MultilineConfig | null;

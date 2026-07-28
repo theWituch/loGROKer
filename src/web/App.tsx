@@ -129,14 +129,6 @@ export default function App() {
   );
 
   const columns = useMemo<ColumnDef<LogRecord>[]>(() => [
-    {
-      id: '_lines',
-      header: 'lines',
-      accessorFn: (record) => record.lineCount,
-      size: 86,
-      minSize: 72,
-      maxSize: 130,
-    },
     ...fields.map((field): ColumnDef<LogRecord> => ({
       id: field,
       header: field,
@@ -192,7 +184,7 @@ export default function App() {
   };
   const showAllColumns = () => {
     setColumnVisibility(Object.fromEntries(
-      ['_lines', ...fields, 'raw'].map((field) => [field, true]),
+      [...fields, 'raw'].map((field) => [field, true]),
     ));
   };
   const openRecord = (record: LogRecord) => {
@@ -219,8 +211,8 @@ export default function App() {
         <div className="paths">
           <PathLine label="LOG" value={status?.logPath ?? 'Loading…'} />
           <PathLine
-            label="GROK"
-            value={status?.grokPath ?? 'brak — raw mode'}
+            label="CONFIG"
+            value={status?.configPath ?? 'brak — raw mode'}
           />
         </div>
 
@@ -235,7 +227,7 @@ export default function App() {
 
       {status?.parserError && (
         <div className="error-banner" role="alert">
-          <strong>Error GROK:</strong> {status.parserError}
+          <strong>Configuration error:</strong> {status.parserError}
         </div>
       )}
 
@@ -271,7 +263,7 @@ export default function App() {
             <div className="column-menu-actions">
               <button onClick={showAllColumns}>Show all</button>
               <button onClick={() => setColumnVisibility(
-                Object.fromEntries(['_lines', ...fields, 'raw'].map((field) => [field, false])),
+                Object.fromEntries([...fields, 'raw'].map((field) => [field, false])),
               )}>Hide all</button>
             </div>
             {table.getAllLeafColumns().map((column) => (
@@ -369,6 +361,16 @@ export default function App() {
                   const previous = virtualRow.index > 0 ? rows[virtualRow.index - 1].original : null;
                   const generationStart = previous && previous.generation !== row.original.generation;
                   const latestVisible = virtualRow.index === rows.length - 1;
+                  const visibleCells = row.getVisibleCells();
+                  const multilineCell = row.original.multiline
+                    ? (
+                      visibleCells.find((cell) => (
+                        String(cell.getValue() ?? '').includes('\n')
+                      ))
+                      ?? visibleCells.find((cell) => cell.column.id === 'message')
+                      ?? visibleCells.find((cell) => cell.column.id === 'raw')
+                    )
+                    : undefined;
                   return (
                     <tr
                       key={row.id}
@@ -390,22 +392,40 @@ export default function App() {
                         <td className="unmatched-cell">
                           <strong>NIEDOPASOWANY</strong>
                           <span title={row.original.raw}>{row.original.raw}</span>
+                          {row.original.multiline && (
+                            <button
+                              className="multiline-badge"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                openRecord(row.original);
+                              }}
+                              title="Show the full multiline record"
+                            >
+                              {row.original.lineCount} lines
+                            </button>
+                          )}
                         </td>
-                      ) : row.getVisibleCells().map((cell, index, visibleCells) => {
+                      ) : visibleCells.map((cell, index) => {
                         const value = String(cell.getValue() ?? '');
                         const size = cell.column.getSize();
                         const isLastVisible = index === visibleCells.length - 1;
+                        const showsMultilineBadge = multilineCell?.id === cell.id;
+                        const renderedValue = cell.column.id === 'level' && value
+                          ? <span className={`level-badge ${commonLevelClass(value)}`}>{value}</span>
+                          : value;
                         return (
                           <td
                             key={cell.id}
+                            className={showsMultilineBadge ? 'cell-multiline' : undefined}
                             style={{
                               width: size,
                               flex: isLastVisible ? `1 0 ${size}px` : `0 0 ${size}px`,
                             }}
                             title={value}
                           >
-                            {cell.column.id === '_lines' ? (
-                              row.original.multiline ? (
+                            {showsMultilineBadge ? (
+                              <>
+                                <span className="multiline-cell-value">{renderedValue}</span>
                                 <button
                                   className="multiline-badge"
                                   onClick={(event) => {
@@ -416,10 +436,8 @@ export default function App() {
                                 >
                                   {row.original.lineCount} lines
                                 </button>
-                              ) : <span className="single-line-mark">1</span>
-                            ) : cell.column.id === 'level' && value ? (
-                              <span className={`level-badge ${commonLevelClass(value)}`}>{value}</span>
-                            ) : value}
+                              </>
+                            ) : renderedValue}
                           </td>
                         );
                       })}
@@ -459,7 +477,7 @@ export default function App() {
             </div>
 
             <section className="drawer-fields">
-              <h3>Pola GROK</h3>
+              <h3>Pola sparsowane</h3>
               <dl>
                 {Object.entries(selectedRecord.fields).map(([key, value]) => (
                   <div key={key}>

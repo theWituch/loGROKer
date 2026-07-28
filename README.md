@@ -14,7 +14,7 @@ fields as configurable columns.
 ```powershell
 npm install
 npm run build
-npm start -- --log "E:\logs\log.log" --grok "E:\logs\pattern.cfg"
+npm start -- --log "E:\logs\log.log" --config "E:\logs\config.yml"
 ```
 
 The panel will be available at `http://127.0.0.1:3000`. The server deliberately does not
@@ -39,13 +39,16 @@ Frontend works wtedy pod `http://127.0.0.1:5173`.
 | Argument | Meaning | Default |
 | --- | --- | --- |
 | `--log <path>` | Obserwowany plik; wymagany | — |
-| `--grok <path>` | Opcjonalna konfiguracja YAML | raw mode |
+| `--config <path>` | Opcjonalny plik konfiguracji YAML | raw mode |
 | `--port <number>` | Port panelu | `3000` |
 | `--tail <number>` | Number of initial lines | `1000` |
 | `--max-records <number>` | Logical record buffer size | `10000` |
 | `--poll` | Polling dla SMB/NFS | disabled |
 
-## Konfiguracja GROK i multiline
+## Plik konfiguracyjny
+
+The `config.yml` file contains the main GROK expression, custom patterns,
+and multiline event assembly rules:
 
 ```yaml
 match: >-
@@ -95,8 +98,8 @@ pokazuje komunikat, a ostatni poprawny parser nadal works.
   configuration change, shutdown, or reaching a limit;
 - never combines data from two file generations;
 - does not hide orphaned lines or records unmatched by GROK;
-- the record line count is visible in the table, and the full log can be open
-  by double-clicking or using the button and copied;
+- shows a line-count badge for multiline fields, and the full log can be
+  opened with a double-click or button and copied;
 - column visibility is stored locally in the browser;
 - search, level filtering, pause, autoscroll, and clearing the view work
   in the browser.

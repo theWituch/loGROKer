@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { parse } from 'yaml';
-import type { GrokConfig, MultilineConfig } from '../shared/contracts.js';
+import type { MultilineConfig, ParserConfig } from '../shared/contracts.js';
 
 const ALLOWED_KEYS = new Set(['match', 'patterns', 'multiline']);
 const ALLOWED_MULTILINE_KEYS = new Set([
@@ -14,7 +14,7 @@ const ALLOWED_MULTILINE_KEYS = new Set([
 ]);
 const PATTERN_NAME = /^[A-Z][A-Z0-9_]*$/;
 
-export function parseGrokConfig(source: string): GrokConfig {
+export function parseConfig(source: string): ParserConfig {
   let raw: unknown;
   try {
     raw = parse(source, {
@@ -26,12 +26,12 @@ export function parseGrokConfig(source: string): GrokConfig {
   }
 
   if (!isPlainObject(raw)) {
-    throw new Error('GROK configuration must be a YAML object.');
+    throw new Error('Parser configuration must be a YAML object.');
   }
 
   for (const key of Object.keys(raw)) {
     if (!ALLOWED_KEYS.has(key)) {
-      throw new Error(`Unknown parser configuration field konfiguracji GROK: ${key}`);
+      throw new Error(`Unknown parser configuration field: ${key}`);
     }
   }
 
@@ -70,9 +70,9 @@ export function parseGrokConfig(source: string): GrokConfig {
   };
 }
 
-export async function loadGrokConfig(path: string): Promise<GrokConfig> {
+export async function loadConfig(path: string): Promise<ParserConfig> {
   const source = await readFile(path, 'utf8');
-  return parseGrokConfig(source);
+  return parseConfig(source);
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

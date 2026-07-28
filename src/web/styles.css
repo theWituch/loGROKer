@@ -539,6 +539,8 @@ button {
 }
 
 .unmatched-cell span {
+  min-width: 0;
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -591,7 +593,33 @@ button {
   white-space: pre-wrap;
 }
 
+.cell-multiline {
+  gap: 10px;
+}
+
+.multiline-cell-value {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-latest .cell-multiline {
+  overflow: hidden;
+}
+
+.row-latest .multiline-cell-value {
+  align-self: stretch;
+  overflow: auto;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: pre-wrap;
+}
+
 .multiline-badge {
+  flex: none;
+  margin-left: auto;
   padding: 3px 7px;
   color: var(--accent);
   background: var(--accent-dim);
@@ -604,10 +632,6 @@ button {
 
 .multiline-badge:hover {
   background: #1d4d46;
-}
-
-.single-line-mark {
-  color: var(--muted);
 }
 
 .record-overlay {

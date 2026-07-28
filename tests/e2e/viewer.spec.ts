@@ -1,12 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-test('shows paths, status, and GROK columns', async ({ page }) => {
+test('shows paths, status, and parsed columns', async ({ page }) => {
   await page.setViewportSize({ width: 2200, height: 900 });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'LoGROKer' })).toBeVisible();
   await expect(page.getByText('Live', { exact: true })).toBeVisible();
   await expect(page.locator('code').filter({ hasText: 'log.log' })).toBeVisible();
-  await expect(page.getByRole('columnheader', { name: 'lines' })).toBeVisible();
+  await expect(page.locator('code').filter({ hasText: 'config.yml' })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'lines' })).toHaveCount(0);
   await expect(page.getByRole('columnheader', { name: 'timestamp' })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'message' })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'raw' })).toBeHidden();
@@ -38,7 +39,9 @@ test('shows paths, status, and GROK columns', async ({ page }) => {
     element.scrollHeight - element.clientHeight - element.scrollTop
   ))).toBeLessThanOrEqual(1);
 
-  await page.getByRole('button', { name: '14 lines' }).click();
+  const multilineBadge = page.getByRole('button', { name: '14 lines' });
+  await expect(multilineBadge.locator('xpath=ancestor::td')).toHaveClass(/cell-multiline/);
+  await multilineBadge.click();
   const details = page.getByRole('dialog', { name: 'Log record details' });
   await expect(details).toBeVisible();
   await expect(details.locator('pre')).toContainText('RuntimeError: Telegram down');

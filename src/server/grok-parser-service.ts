@@ -1,5 +1,5 @@
 import { Worker } from 'node:worker_threads';
-import type { GrokConfig } from '../shared/contracts.js';
+import type { ParserConfig } from '../shared/contracts.js';
 
 interface WorkerSuccess {
   id: number;
@@ -45,7 +45,7 @@ export class GrokParserService {
     });
   }
 
-  async configure(config: GrokConfig): Promise<void> {
+  async configure(config: ParserConfig): Promise<void> {
     await this.start();
     await this.request('configure', { config });
   }
