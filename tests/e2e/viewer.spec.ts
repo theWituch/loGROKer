@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('shows paths, status, and GROK columns', async ({ page }) => {
+  await page.setViewportSize({ width: 2200, height: 900 });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'LoGROKer' })).toBeVisible();
   await expect(page.getByText('Live', { exact: true })).toBeVisible();
@@ -8,6 +9,18 @@ test('shows paths, status, and GROK columns', async ({ page }) => {
   await expect(page.getByRole('columnheader', { name: 'lines' })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'timestamp' })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'message' })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'raw' })).toBeHidden();
+  await expect.poll(async () => {
+    const message = await page.getByRole('columnheader', { name: 'message' }).boundingBox();
+    const viewport = await page.locator('.table-scroll').boundingBox();
+    if (!message || !viewport) return Number.POSITIVE_INFINITY;
+    return Math.abs(
+      viewport.x + viewport.width - (message.x + message.width),
+    );
+  }).toBeLessThan(2);
+  await expect.poll(() => page.locator('.table-scroll').evaluate((element) => (
+    element.scrollWidth - element.clientWidth
+  ))).toBeLessThanOrEqual(0);
 
   await page.getByRole('button', { name: '14 lines' }).click();
   const details = page.getByRole('dialog', { name: 'Log record details' });

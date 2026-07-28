@@ -333,19 +333,29 @@ export default function App() {
               <thead>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <th key={header.id} style={{ width: header.getSize() }}>
-                        <span>
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                        </span>
-                        <button
-                          className="resize-handle"
-                          onMouseDown={header.getResizeHandler()}
-                          onTouchStart={header.getResizeHandler()}
-                          aria-label={`Resize column ${header.id}`}
-                        />
-                      </th>
-                    ))}
+                    {headerGroup.headers.map((header, index) => {
+                      const size = header.getSize();
+                      const isLastVisible = index === headerGroup.headers.length - 1;
+                      return (
+                        <th
+                          key={header.id}
+                          style={{
+                            width: size,
+                            flex: isLastVisible ? `1 0 ${size}px` : `0 0 ${size}px`,
+                          }}
+                        >
+                          <span>
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          </span>
+                          <button
+                            className="resize-handle"
+                            onMouseDown={header.getResizeHandler()}
+                            onTouchStart={header.getResizeHandler()}
+                            aria-label={`Resize column ${header.id}`}
+                          />
+                        </th>
+                      );
+                    })}
                   </tr>
                 ))}
               </thead>
@@ -373,10 +383,19 @@ export default function App() {
                           <strong>NIEDOPASOWANY</strong>
                           <span title={row.original.raw}>{row.original.raw}</span>
                         </td>
-                      ) : row.getVisibleCells().map((cell) => {
+                      ) : row.getVisibleCells().map((cell, index, visibleCells) => {
                         const value = String(cell.getValue() ?? '');
+                        const size = cell.column.getSize();
+                        const isLastVisible = index === visibleCells.length - 1;
                         return (
-                          <td key={cell.id} style={{ width: cell.column.getSize() }} title={value}>
+                          <td
+                            key={cell.id}
+                            style={{
+                              width: size,
+                              flex: isLastVisible ? `1 0 ${size}px` : `0 0 ${size}px`,
+                            }}
+                            title={value}
+                          >
                             {cell.column.id === '_lines' ? (
                               row.original.multiline ? (
                                 <button

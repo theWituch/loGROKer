@@ -473,6 +473,10 @@ button {
   background: rgba(67, 215, 180, 0.38);
 }
 
+.log-table th:last-child .resize-handle {
+  right: 0;
+}
+
 .level-badge {
   padding: 2px 6px;
   color: #93abc0;
