@@ -1,8 +1,8 @@
 # LoGROKer
 
-A local, full-screen viewer for log files. Odczytuje dopisywane linie w czasie
-in real time, parses them with GROK, and displays fields as configurable
-kolumny.
+A local, full-screen viewer for log files. It reads appended data in real time,
+assembles multiline events, parses them with GROK, and displays
+fields as configurable columns.
 
 ## Wymagania
 
@@ -20,7 +20,7 @@ npm start -- --log "E:\logs\log.log" --grok "E:\logs\pattern.cfg"
 The panel will be available at `http://127.0.0.1:3000`. The server deliberately does not
 listen on network interfaces.
 
-Tryb bez parsera:
+Mode without a parser or multiline assembly:
 
 ```powershell
 npm start -- --log "E:\logs\log.log"
@@ -42,31 +42,61 @@ Frontend works wtedy pod `http://127.0.0.1:5173`.
 | `--grok <path>` | Opcjonalna konfiguracja YAML | raw mode |
 | `--port <number>` | Port panelu | `3000` |
 | `--tail <number>` | Number of initial lines | `1000` |
-| `--max-records <number>` | Rozmiar bufora | `10000` |
+| `--max-records <number>` | Logical record buffer size | `10000` |
 | `--poll` | Polling dla SMB/NFS | disabled |
 
-## Konfiguracja GROK
+## Konfiguracja GROK i multiline
 
 ```yaml
 match: >-
-  ^%{TIMESTAMP_ISO8601:timestamp}\s+%{LOGLEVEL:level}\s+%{GREEDYDATA:message}$
+  ^%{TIMESTAMP_ISO8601:timestamp}\s+%{LOGLEVEL:level}\s+%{MULTILINE_DATA:message}$
 
 patterns:
-  MY_LOGGER: '[A-Za-z0-9_.]+'
+  MULTILINE_DATA: '[\s\S]*'
+
+multiline:
+  pattern: '^%{TIMESTAMP_ISO8601}'
+  negate: true
+  what: previous
+  auto_flush_interval: 2
+  max_lines: 500
+  max_bytes: 10485760
+  skip_newline: false
 ```
 
 `match` is required. `patterns` is an optional map of custom, single-line
-definitions. Saving the corrected configuration triggers automatic compilation
-and buffer recalculation. If the new configuration is invalid, the panel
+definitions. The main expression must allow newline characters if it is to parse
+the complete multiline event — the example `MULTILINE_DATA` serves this purpose.
+
+Sekcja `multiline` jest opcjonalna. Jej semantyka odpowiada filtrowi multiline
+z Logstash:
+
+- `pattern` — GROK recognizing a boundary, e.g. a timestamp at the start of a line;
+- `negate` — inverts the match result;
+- `what: previous` — attaches selected lines to the previous event;
+- `what: next` — attaches selected lines to the next event;
+- `auto_flush_interval` — how many seconds without new data before publishing a record;
+- `max_lines` and `max_bytes` — safety limits for the record size;
+- `skip_newline` — skleja linie bez separatora `\n`.
+
+The defaults are respectively: `false`, `previous`, 2 sekundy, 500 lines,
+10 MiB oraz `false`. Setting `multiline: false` disables assembly.
+
+Saving an updated configuration automatically compiles it and reassembles
+events and recalculates the buffer. If the new configuration is invalid, the panel
 pokazuje komunikat, a ostatni poprawny parser nadal works.
 
 ## Viewer behavior
 
-- start od ostatnich 1000 complete lines;
-- buffer of up to 10,000 records;
+- starts with the last 1000 complete physical lines;
+- has a buffer of up to 10,000 logical records;
 - supports CRLF, LF, UTF-8, partial writes, and file rotation;
-- rotation preserves history and starts a new generation;
-- lines unmatched by GROK are not hidden;
+- flushes a pending record on the next boundary, timeout, rotation,
+  configuration change, shutdown, or reaching a limit;
+- never combines data from two file generations;
+- does not hide orphaned lines or records unmatched by GROK;
+- the record line count is visible in the table, and the full log can be open
+  by double-clicking or using the button and copied;
 - column visibility is stored locally in the browser;
 - search, level filtering, pause, autoscroll, and clearing the view work
   in the browser.
@@ -79,7 +109,7 @@ npm run typecheck
 npm run build
 ```
 
-Optional browser tests require Chromium installation:
+Optional browser tests require Chromium:
 
 ```powershell
 npx playwright install chromium

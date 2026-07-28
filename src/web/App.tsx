@@ -35,6 +35,8 @@ export default function App() {
   const [pausedAt, setPausedAt] = useState<number | null>(null);
   const [clearedBefore, setClearedBefore] = useState(0);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [selectedRecord, setSelectedRecord] = useState<LogRecord | null>(null);
+  const [copied, setCopied] = useState(false);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
     readVisibility,
   );
@@ -86,6 +88,19 @@ export default function App() {
     localStorage.setItem(VISIBILITY_KEY, JSON.stringify(columnVisibility));
   }, [columnVisibility]);
 
+  useEffect(() => {
+    if (!selectedRecord) {
+      return;
+    }
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSelectedRecord(null);
+      }
+    };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [selectedRecord]);
+
   const latestSequence = records.at(-1)?.sequence ?? 0;
   const newWhilePaused = pausedAt === null
     ? 0
@@ -113,6 +128,14 @@ export default function App() {
   );
 
   const columns = useMemo<ColumnDef<LogRecord>[]>(() => [
+    {
+      id: '_lines',
+      header: 'lines',
+      accessorFn: (record) => record.lineCount,
+      size: 86,
+      minSize: 72,
+      maxSize: 130,
+    },
     ...fields.map((field): ColumnDef<LogRecord> => ({
       id: field,
       header: field,
@@ -165,8 +188,17 @@ export default function App() {
   };
   const showAllColumns = () => {
     setColumnVisibility(Object.fromEntries(
-      [...fields, 'raw'].map((field) => [field, true]),
+      ['_lines', ...fields, 'raw'].map((field) => [field, true]),
     ));
+  };
+  const openRecord = (record: LogRecord) => {
+    setCopied(false);
+    setSelectedRecord(record);
+  };
+  const copyRecord = async () => {
+    if (!selectedRecord) return;
+    await navigator.clipboard.writeText(selectedRecord.raw);
+    setCopied(true);
   };
 
   return (
@@ -235,7 +267,7 @@ export default function App() {
             <div className="column-menu-actions">
               <button onClick={showAllColumns}>Show all</button>
               <button onClick={() => setColumnVisibility(
-                Object.fromEntries([...fields, 'raw'].map((field) => [field, false])),
+                Object.fromEntries(['_lines', ...fields, 'raw'].map((field) => [field, false])),
               )}>Hide all</button>
             </div>
             {table.getAllLeafColumns().map((column) => (
@@ -272,6 +304,12 @@ export default function App() {
         <div className="table-summary">
           <span><strong>{visibleRecords.length.toLocaleString('pl-PL')}</strong> widocznych</span>
           <span>{status?.buffered.toLocaleString('pl-PL') ?? 0} in buffer</span>
+          <span>{status?.physicalLines.toLocaleString('pl-PL') ?? 0} lines fizycznych</span>
+          {Boolean(status?.pendingMultilineLines) && (
+            <span className="summary-pending">
+              {status?.pendingMultilineLines} pending
+            </span>
+          )}
           {status?.parserMode === 'grok' && (
             <>
               <span className="summary-ok">{status.matched.toLocaleString('pl-PL')} matched</span>
@@ -328,6 +366,7 @@ export default function App() {
                         height: virtualRow.size,
                         transform: `translateY(${virtualRow.start}px)`,
                       }}
+                      onDoubleClick={() => openRecord(row.original)}
                     >
                       {row.original.parseStatus === 'unmatched' ? (
                         <td className="unmatched-cell">
@@ -338,7 +377,20 @@ export default function App() {
                         const value = String(cell.getValue() ?? '');
                         return (
                           <td key={cell.id} style={{ width: cell.column.getSize() }} title={value}>
-                            {cell.column.id === 'level' && value ? (
+                            {cell.column.id === '_lines' ? (
+                              row.original.multiline ? (
+                                <button
+                                  className="multiline-badge"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    openRecord(row.original);
+                                  }}
+                                  title="Show the full multiline record"
+                                >
+                                  {row.original.lineCount} lines
+                                </button>
+                              ) : <span className="single-line-mark">1</span>
+                            ) : cell.column.id === 'level' && value ? (
                               <span className={`level-badge ${commonLevelClass(value)}`}>{value}</span>
                             ) : value}
                           </td>
@@ -352,6 +404,57 @@ export default function App() {
           )}
         </div>
       </section>
+
+      {selectedRecord && (
+        <div className="record-overlay" role="presentation" onMouseDown={() => setSelectedRecord(null)}>
+          <aside
+            className="record-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Log record details"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <span className="drawer-kicker">Rekord #{selectedRecord.sequence}</span>
+                <h2>{selectedRecord.lineCount} {selectedRecord.lineCount === 1 ? 'line' : 'lines'}</h2>
+              </div>
+              <button className="drawer-close" onClick={() => setSelectedRecord(null)} aria-label="Close">
+                ×
+              </button>
+            </header>
+
+            <div className="record-meta">
+              <span>generation {selectedRecord.generation}</span>
+              <span>{selectedRecord.parseStatus}</span>
+              <span>{selectedRecord.flushReason}</span>
+              {selectedRecord.limitReached && <strong>limit reached</strong>}
+            </div>
+
+            <section className="drawer-fields">
+              <h3>Pola GROK</h3>
+              <dl>
+                {Object.entries(selectedRecord.fields).map(([key, value]) => (
+                  <div key={key}>
+                    <dt>{key}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+
+            <section className="drawer-raw">
+              <div>
+                <h3>Full log</h3>
+                <button className="button" onClick={() => void copyRecord()}>
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+              <pre>{selectedRecord.raw}</pre>
+            </section>
+          </aside>
+        </div>
+      )}
     </main>
   );
 }

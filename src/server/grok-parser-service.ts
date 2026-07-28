@@ -58,6 +58,14 @@ export class GrokParserService {
     return await this.request('parse', { lines }) as Array<Record<string, string> | null>;
   }
 
+  async classifyMultiline(lines: string[]): Promise<boolean[]> {
+    if (lines.length === 0) {
+      return [];
+    }
+    await this.start();
+    return await this.request('classify', { lines }) as boolean[];
+  }
+
   async stop(): Promise<void> {
     const worker = this.worker;
     this.worker = null;
@@ -67,7 +75,7 @@ export class GrokParserService {
     this.failAll(new Error('The GROK parser was stopped.'));
   }
 
-  private request(type: 'configure' | 'parse', payload: object): Promise<unknown> {
+  private request(type: 'configure' | 'parse' | 'classify', payload: object): Promise<unknown> {
     if (!this.worker) {
       return Promise.reject(new Error('The GROK worker is unavailable.'));
     }

@@ -45,10 +45,34 @@ describe('GrokParserService', () => {
     await service.configure({
       match: '^%{CUSTOM:value}$',
       patterns: { CUSTOM: '[a-z]+' },
+      multiline: null,
     });
     await expect(service.parse(['abc', '123'])).resolves.toEqual([
       { value: 'abc' },
       null,
     ]);
+  });
+
+  it('classifies event starts with the same GROK dictionary', async () => {
+    const service = new GrokParserService();
+    services.push(service);
+    await service.configure({
+      match: '^%{GREEDYDATA:message}$',
+      patterns: {},
+      multiline: {
+        pattern: '^%{TIMESTAMP_ISO8601}',
+        negate: true,
+        what: 'previous',
+        autoFlushInterval: 2,
+        maxLines: 500,
+        maxBytes: 10 * 1024 * 1024,
+        skipNewline: false,
+      },
+    });
+
+    await expect(service.classifyMultiline([
+      '2025-11-07T10:14:12.000Z INFO start',
+      '    at worker.ts:10',
+    ])).resolves.toEqual([true, false]);
   });
 });

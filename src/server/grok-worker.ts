@@ -7,7 +7,8 @@ import type { GrokConfig } from '../shared/contracts.js';
 
 type WorkerRequest =
   | { id: number; type: 'configure'; config: GrokConfig }
-  | { id: number; type: 'parse'; lines: string[] };
+  | { id: number; type: 'parse'; lines: string[] }
+  | { id: number; type: 'classify'; lines: string[] };
 
 type WorkerResponse =
   | { id: number; ok: true; result: unknown }
@@ -20,12 +21,28 @@ if (!parentPort) {
 await grok.init();
 
 let activePattern: ReturnType<ReturnType<typeof grok.loadDefaultSync>['createPattern']> | null = null;
+let activeMultilinePattern: ReturnType<ReturnType<typeof grok.loadDefaultSync>['createPattern']> | null = null;
 
 parentPort.on('message', async (message: WorkerRequest) => {
   try {
     if (message.type === 'configure') {
-      activePattern = await compile(message.config);
+      const compiled = await compile(message.config);
+      activePattern = compiled.pattern;
+      activeMultilinePattern = compiled.multilinePattern;
       respond({ id: message.id, ok: true, result: true });
+      return;
+    }
+
+    if (message.type === 'classify') {
+      if (!activeMultilinePattern) {
+        throw new Error('The multiline pattern was not configured.');
+      }
+      const boundary = activeMultilinePattern;
+      respond({
+        id: message.id,
+        ok: true,
+        result: message.lines.map((line) => boundary.parseSync(line) !== null),
+      });
       return;
     }
 
@@ -60,7 +77,12 @@ async function compile(config: GrokConfig) {
     }
   }
 
-  return collection.createPattern(config.match);
+  return {
+    pattern: collection.createPattern(config.match),
+    multilinePattern: config.multiline
+      ? collection.createPattern(config.multiline.pattern)
+      : null,
+  };
 }
 
 function normalizeResult(value: Record<string, unknown> | null): Record<string, string> | null {

@@ -10,6 +10,10 @@ const records: LogRecord[] = [
     raw: 'INFO started',
     parseStatus: 'matched',
     fields: { level: 'INFO', message: 'started' },
+    lineCount: 1,
+    multiline: false,
+    limitReached: false,
+    flushReason: 'single',
   },
   {
     id: '0:2',
@@ -18,6 +22,10 @@ const records: LogRecord[] = [
     raw: 'ERROR failure',
     parseStatus: 'matched',
     fields: { level: 'ERROR', message: 'failure' },
+    lineCount: 1,
+    multiline: false,
+    limitReached: false,
+    flushReason: 'single',
   },
 ];
 

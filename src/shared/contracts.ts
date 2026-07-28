@@ -1,5 +1,16 @@
 export type ParseStatus = 'raw' | 'matched' | 'unmatched';
 
+export type MultilineFlushReason =
+  | 'single'
+  | 'boundary'
+  | 'timeout'
+  | 'initial'
+  | 'rotation'
+  | 'configuration'
+  | 'shutdown'
+  | 'max_lines'
+  | 'max_bytes';
+
 export interface LogRecord {
   id: string;
   generation: number;
@@ -7,6 +18,10 @@ export interface LogRecord {
   raw: string;
   parseStatus: ParseStatus;
   fields: Record<string, string>;
+  lineCount: number;
+  multiline: boolean;
+  limitReached: boolean;
+  flushReason: MultilineFlushReason;
 }
 
 export type ViewerState = 'starting' | 'live' | 'waiting' | 'error';
@@ -25,6 +40,8 @@ export interface ViewerStatus {
   matched: number;
   unmatched: number;
   buffered: number;
+  physicalLines: number;
+  pendingMultilineLines: number;
 }
 
 export interface ViewerSnapshot {
@@ -41,4 +58,15 @@ export type ServerEvent =
 export interface GrokConfig {
   match: string;
   patterns: Record<string, string>;
+  multiline: MultilineConfig | null;
+}
+
+export interface MultilineConfig {
+  pattern: string;
+  negate: boolean;
+  what: 'previous' | 'next';
+  autoFlushInterval: number;
+  maxLines: number;
+  maxBytes: number;
+  skipNewline: boolean;
 }
