@@ -58,6 +58,27 @@ test('shows paths, status, and parsed columns', async ({ page }) => {
     );
   }).toBeLessThan(2);
 
+  const firstRow = page.locator('.log-table tbody tr').filter({ hasText: 'Test message 01' });
+  const fifthRow = page.locator('.log-table tbody tr').filter({ hasText: 'Test message 05' });
+  const tenthRow = page.locator('.log-table tbody tr').filter({ hasText: 'Test message 10' });
+  await firstRow.click();
+  await expect(firstRow).toHaveClass(/row-selected/);
+  await fifthRow.click({ modifiers: ['Shift'] });
+  await expect(page.locator('.log-table tbody tr.row-selected')).toHaveCount(5);
+  await expect(page.getByText('5 selected', { exact: true })).toBeVisible();
+  await tenthRow.click();
+  await expect(page.locator('.log-table tbody tr.row-selected')).toHaveCount(1);
+  await expect(tenthRow).toHaveClass(/row-selected/);
+  await firstRow.click({ modifiers: ['Control'] });
+  await fifthRow.click({ modifiers: ['Control'] });
+  await expect(page.locator('.log-table tbody tr.row-selected')).toHaveCount(3);
+  await expect(firstRow).toHaveClass(/row-selected/);
+  await expect(fifthRow).toHaveClass(/row-selected/);
+  await expect(tenthRow).toHaveClass(/row-selected/);
+  await fifthRow.click({ modifiers: ['Control'] });
+  await expect(page.locator('.log-table tbody tr.row-selected')).toHaveCount(2);
+  await expect(fifthRow).not.toHaveClass(/row-selected/);
+
   const multilineBadge = page.getByRole('button', { name: '14 lines' });
   await expect(multilineBadge.locator('xpath=ancestor::td')).toHaveClass(/cell-multiline/);
   await multilineBadge.click();

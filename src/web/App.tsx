@@ -40,6 +40,8 @@ export default function App() {
   const [clearedBefore, setClearedBefore] = useState(0);
   const [autoScroll, setAutoScroll] = useState(true);
   const [pinLatest, setPinLatest] = useState(true);
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(() => new Set());
+  const [selectionAnchorId, setSelectionAnchorId] = useState<string | null>(null);
   const [selectedRecord, setSelectedRecord] = useState<LogRecord | null>(null);
   const [copied, setCopied] = useState(false);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
@@ -132,6 +134,17 @@ export default function App() {
     [records, query, level, pausedAt, clearedBefore],
   );
 
+  useEffect(() => {
+    const availableIds = new Set(records.map((record) => record.id));
+    setSelectedRowIds((current) => {
+      const next = new Set([...current].filter((id) => availableIds.has(id)));
+      return next.size === current.size ? current : next;
+    });
+    setSelectionAnchorId((current) => (
+      current && availableIds.has(current) ? current : null
+    ));
+  }, [records]);
+
   const columns = useMemo<ColumnDef<LogRecord>[]>(() => [
     ...fields.map((field): ColumnDef<LogRecord> => ({
       id: field,
@@ -193,6 +206,44 @@ export default function App() {
   const clearView = () => {
     setClearedBefore(latestSequence);
     setPausedAt(null);
+    setSelectedRowIds(new Set());
+    setSelectionAnchorId(null);
+  };
+  const selectRow = (
+    record: LogRecord,
+    extendRange: boolean,
+    toggleIndividual: boolean,
+  ) => {
+    const targetIndex = visibleRecords.findIndex((candidate) => candidate.id === record.id);
+    const anchorIndex = selectionAnchorId
+      ? visibleRecords.findIndex((candidate) => candidate.id === selectionAnchorId)
+      : -1;
+
+    if (extendRange && anchorIndex >= 0 && targetIndex >= 0) {
+      const start = Math.min(anchorIndex, targetIndex);
+      const end = Math.max(anchorIndex, targetIndex);
+      setSelectedRowIds(new Set(
+        visibleRecords.slice(start, end + 1).map((candidate) => candidate.id),
+      ));
+      return;
+    }
+
+    if (toggleIndividual) {
+      const next = new Set(selectedRowIds);
+      if (next.has(record.id)) {
+        next.delete(record.id);
+      } else {
+        next.add(record.id);
+      }
+      setSelectedRowIds(next);
+      setSelectionAnchorId(next.has(record.id)
+        ? record.id
+        : ([...next].at(-1) ?? null));
+      return;
+    }
+
+    setSelectedRowIds(new Set([record.id]));
+    setSelectionAnchorId(record.id);
   };
   const showAllColumns = () => {
     setColumnVisibility(Object.fromEntries(
@@ -336,6 +387,11 @@ export default function App() {
             </>
           )}
           <span>generation {status?.generation ?? 0}</span>
+          {selectedRowIds.size > 0 && (
+            <span className="summary-selected">
+              <strong>{selectedRowIds.size.toLocaleString('pl-PL')}</strong> selected
+            </span>
+          )}
         </div>
 
         <div className="table-scroll" ref={scrollRef}>
@@ -403,11 +459,18 @@ export default function App() {
                         generationStart ? 'generation-start' : '',
                         latestVisible ? 'row-latest' : '',
                         latestVisible && pinLatest ? 'row-pinned' : '',
+                        selectedRowIds.has(row.original.id) ? 'row-selected' : '',
                       ].filter(Boolean).join(' ')}
                       style={{
                         transform: `translateY(${virtualRow.start}px)`,
                         '--latest-row-start': `${virtualRow.start}px`,
                       } as CSSProperties}
+                      aria-selected={selectedRowIds.has(row.original.id)}
+                      onClick={(event) => {
+                        const toggleIndividual = event.ctrlKey || event.metaKey;
+                        if (event.shiftKey || toggleIndividual) event.preventDefault();
+                        selectRow(row.original, event.shiftKey, toggleIndividual);
+                      }}
                       onDoubleClick={() => openRecord(row.original)}
                     >
                       {row.original.parseStatus === 'unmatched' ? (

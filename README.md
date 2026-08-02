@@ -102,6 +102,10 @@ pokazuje komunikat, a ostatni poprawny parser nadal works.
   opened with a double-click or button and copied;
 - the “Pin latest” option pins the last record to the bottom edge, so it
   remains visible while browsing older logs;
+- a single click selects a record, while `Shift+click` selects the entire visible
+  range from the last selected record;
+- `Ctrl+click` adds or removes one record without changing other
+  selections;
 - column visibility is stored locally in the browser;
 - search, level filtering, pause, autoscroll, and clearing the view work
   in the browser.
