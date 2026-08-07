@@ -287,23 +287,6 @@ button {
   font-size: 18px;
 }
 
-.select-field {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.select-field select {
-  height: 34px;
-  padding: 0 28px 0 9px;
-  color: var(--text);
-  background: #0a151f;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-}
-
 .column-picker {
   position: relative;
 }
@@ -355,6 +338,19 @@ button {
   padding: 7px 5px;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   font-size: 12px;
+}
+
+.level-picker .column-menu {
+  width: 220px;
+}
+
+.level-picker .column-menu label {
+  cursor: pointer;
+}
+
+.level-picker .level-badge {
+  min-width: 92px;
+  justify-content: center;
 }
 
 .source-picker .column-menu label {
@@ -592,6 +588,8 @@ button {
 }
 
 .level-badge {
+  display: inline-flex;
+  align-items: center;
   padding: 2px 6px;
   color: #93abc0;
   background: #182838;

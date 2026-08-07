@@ -21,11 +21,18 @@ import type {
   ViewerSnapshot,
   ViewerStatus,
 } from '../shared/contracts';
-import { commonLevelClass, filterRecords, mergeRecords } from './model';
+import {
+  NO_LEVEL,
+  commonLevelClass,
+  filterRecords,
+  levelFilterKey,
+  mergeRecords,
+} from './model';
 import './styles.css';
 
 const VISIBILITY_KEY = 'logroker.columnVisibility.v1';
 const SOURCES_KEY = 'logroker.sourceVisibility.v1';
+const LEVELS_KEY = 'logroker.levelVisibility.v1';
 const FALLBACK_LIMIT = 10_000;
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected';
@@ -38,7 +45,9 @@ export default function App() {
   const [sourceVisibilityReady, setSourceVisibilityReady] = useState(false);
   const [connection, setConnection] = useState<ConnectionState>('connecting');
   const [query, setQuery] = useState('');
-  const [level, setLevel] = useState('');
+  const [levelVisibility, setLevelVisibility] = useState<Record<string, boolean>>(
+    readLevelVisibility,
+  );
   const [pausedAt, setPausedAt] = useState<number | null>(null);
   const [clearedBefore, setClearedBefore] = useState(0);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -133,31 +142,49 @@ export default function App() {
     ? 0
     : records.filter((record) => record.sequence > pausedAt).length;
 
-  const levels = useMemo(
-    () => [...new Set(records.filter((record) => selectedSourceIds.has(record.sourceId))
-      .map((record) => record.fields.level).filter(Boolean))].sort(),
-    [records, selectedSourceIds],
-  );
-
-  useEffect(() => {
-    if (level && !levels.includes(level)) {
-      setLevel('');
-    }
-  }, [level, levels]);
-
   const sourceRecords = useMemo(
     () => records.filter((record) => selectedSourceIds.has(record.sourceId)),
     [records, selectedSourceIds],
   );
 
+  const levels = useMemo(
+    () => sortLevelKeys([...new Set(sourceRecords.map((record) => (
+      levelFilterKey(record.fields.level)
+    )))]),
+    [sourceRecords],
+  );
+
+  useEffect(() => {
+    setLevelVisibility((current) => {
+      const next = { ...current };
+      let changed = false;
+      for (const level of levels) {
+        if (next[level] === undefined) {
+          next[level] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [levels]);
+
+  useEffect(() => {
+    localStorage.setItem(LEVELS_KEY, JSON.stringify(levelVisibility));
+  }, [levelVisibility]);
+
+  const selectedLevels = useMemo(
+    () => new Set(levels.filter((level) => levelVisibility[level] !== false)),
+    [levelVisibility, levels],
+  );
+
   const visibleRecords = useMemo(
     () => filterRecords(sourceRecords, {
       query,
-      level,
+      levels: selectedLevels,
       maximumSequence: pausedAt,
       clearedBefore,
     }),
-    [sourceRecords, query, level, pausedAt, clearedBefore],
+    [sourceRecords, query, selectedLevels, pausedAt, clearedBefore],
   );
 
   useEffect(() => {
@@ -276,6 +303,12 @@ export default function App() {
       [...fields, 'raw'].map((field) => [field, true]),
     ));
   };
+  const setAllLevelsVisible = (visible: boolean) => {
+    setLevelVisibility((current) => ({
+      ...current,
+      ...Object.fromEntries(levels.map((level) => [level, visible])),
+    }));
+  };
   const openRecord = (record: LogRecord) => {
     setCopied(false);
     setSelectedRecord(record);
@@ -334,13 +367,30 @@ export default function App() {
         </label>
 
         {levels.length > 0 && (
-          <label className="select-field">
-            <span>Poziom</span>
-            <select value={level} onChange={(event) => setLevel(event.target.value)}>
-              <option value="">Wszystkie</option>
-              {levels.map((value) => <option key={value}>{value}</option>)}
-            </select>
-          </label>
+          <details className="column-picker level-picker">
+            <summary>Poziomy <span>{selectedLevels.size}/{levels.length}</span></summary>
+            <div className="column-menu">
+              <div className="column-menu-actions">
+                <button onClick={() => setAllLevelsVisible(true)}>Show all</button>
+                <button onClick={() => setAllLevelsVisible(false)}>Hide all</button>
+              </div>
+              {levels.map((level) => (
+                <label key={level}>
+                  <input
+                    type="checkbox"
+                    checked={levelVisibility[level] !== false}
+                    onChange={(event) => setLevelVisibility((current) => ({
+                      ...current,
+                      [level]: event.target.checked,
+                    }))}
+                  />
+                  <span className={`level-badge ${commonLevelClass(level)}`}>
+                    {level === NO_LEVEL ? 'Bez poziomu' : level}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </details>
         )}
 
         {status && status.sources.length > 0 && (
@@ -716,6 +766,29 @@ function readStoredSourceVisibility(): string[] | null {
 
 function readSourceVisibility(): Set<string> {
   return new Set(readStoredSourceVisibility() ?? []);
+}
+
+function readLevelVisibility(): Record<string, boolean> {
+  try {
+    const stored = localStorage.getItem(LEVELS_KEY);
+    return stored ? JSON.parse(stored) as Record<string, boolean> : {};
+  } catch {
+    return {};
+  }
+}
+
+function sortLevelKeys(levels: string[]): string[] {
+  const order = ['TRACE', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'];
+  return [...levels].sort((left, right) => {
+    if (left === NO_LEVEL) return 1;
+    if (right === NO_LEVEL) return -1;
+    const leftIndex = order.indexOf(left);
+    const rightIndex = order.indexOf(right);
+    if (leftIndex >= 0 && rightIndex >= 0) return leftIndex - rightIndex;
+    if (leftIndex >= 0) return -1;
+    if (rightIndex >= 0) return 1;
+    return left.localeCompare(right, 'pl');
+  });
 }
 
 function defaultColumnSize(field: string): number {

@@ -8,6 +8,28 @@ test('shows paths, status, and parsed columns', async ({ page }) => {
   await page.locator('details.source-picker summary').click();
   await expect(page.locator('.source-option').filter({ hasText: 'log.log' })).toBeVisible();
   await expect(page.locator('.source-option').filter({ hasText: 'config.yml' })).toBeVisible();
+  await page.locator('details.source-picker summary').click();
+
+  const levelPicker = page.locator('details.level-picker');
+  await levelPicker.locator('summary').click();
+  const infoLevel = levelPicker.getByRole('checkbox', { name: 'INFO' });
+  const errorLevel = levelPicker.getByRole('checkbox', { name: 'ERROR' });
+  await expect(infoLevel).toBeChecked();
+  await expect(errorLevel).toBeChecked();
+  await expect(infoLevel.locator('xpath=following-sibling::*')).toHaveClass(/level-info/);
+  await expect(errorLevel.locator('xpath=following-sibling::*')).toHaveClass(/level-error/);
+  await infoLevel.uncheck();
+  await expect(page.locator('.log-table tbody tr.level-info')).toHaveCount(0);
+  await expect(page.locator('.log-table tbody tr.level-error')).toHaveCount(1);
+
+  await page.reload();
+  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  await page.locator('details.level-picker summary').click();
+  await expect(page.locator('details.level-picker').getByRole('checkbox', { name: 'INFO' })).not.toBeChecked();
+  await page.locator('details.level-picker').getByRole('button', { name: 'Show all' }).click();
+  await expect(page.locator('details.level-picker').getByRole('checkbox', { name: 'INFO' })).toBeChecked();
+  await page.locator('details.level-picker summary').click();
+
   await expect(page.getByRole('columnheader', { name: 'lines' })).toHaveCount(0);
   await expect(page.getByRole('columnheader', { name: 'timestamp' })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'message' })).toBeVisible();

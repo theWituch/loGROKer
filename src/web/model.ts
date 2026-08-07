@@ -1,5 +1,7 @@
 import type { LogRecord } from '../shared/contracts';
 
+export const NO_LEVEL = '__no_level__';
+
 export function mergeRecords(
   current: LogRecord[],
   incoming: LogRecord[],
@@ -18,7 +20,7 @@ export function filterRecords(
   records: LogRecord[],
   options: {
     query: string;
-    level: string;
+    levels: ReadonlySet<string>;
     maximumSequence: number | null;
     clearedBefore: number;
   },
@@ -31,7 +33,7 @@ export function filterRecords(
     if (options.maximumSequence !== null && record.sequence > options.maximumSequence) {
       return false;
     }
-    if (options.level && record.fields.level !== options.level) {
+    if (!options.levels.has(levelFilterKey(record.fields.level))) {
       return false;
     }
     if (!needle) {
@@ -43,17 +45,27 @@ export function filterRecords(
 }
 
 export function commonLevelClass(level: string | undefined): string {
-  const normalized = level?.toUpperCase();
+  const normalized = normalizeLogLevel(level);
   if (!normalized) return '';
   const classes: Record<string, string> = {
     TRACE: 'level-trace',
     DEBUG: 'level-debug',
     INFO: 'level-info',
-    WARN: 'level-warning',
     WARNING: 'level-warning',
     ERROR: 'level-error',
     CRITICAL: 'level-critical',
-    FATAL: 'level-critical',
   };
   return classes[normalized] ?? '';
+}
+
+export function normalizeLogLevel(level: string | undefined): string | null {
+  const normalized = level?.trim().toUpperCase();
+  if (!normalized) return null;
+  if (normalized === 'WARN') return 'WARNING';
+  if (normalized === 'FATAL') return 'CRITICAL';
+  return normalized;
+}
+
+export function levelFilterKey(level: string | undefined): string {
+  return normalizeLogLevel(level) ?? NO_LEVEL;
 }

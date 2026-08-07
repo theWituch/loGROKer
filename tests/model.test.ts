@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { LogRecord } from '../src/shared/contracts';
-import { commonLevelClass, filterRecords, mergeRecords } from '../src/web/model';
+import {
+  NO_LEVEL,
+  commonLevelClass,
+  filterRecords,
+  levelFilterKey,
+  mergeRecords,
+} from '../src/web/model';
 
 const records: LogRecord[] = [
   {
@@ -42,10 +48,35 @@ describe('model widoku', () => {
   it('filters by level, text, and pause sequence', () => {
     expect(filterRecords(records, {
       query: 'failure',
-      level: 'ERROR',
+      levels: new Set(['ERROR']),
       maximumSequence: 2,
       clearedBefore: 0,
     })).toEqual([records[1]]);
+  });
+
+  it('filters level combinations, aliases, and records without a level', () => {
+    const warning = {
+      ...records[0],
+      id: '0:3',
+      sequence: 3,
+      raw: 'WARN warning',
+      fields: { level: 'WARN', message: 'warning' },
+    };
+    const withoutLevel = {
+      ...records[0],
+      id: '0:4',
+      sequence: 4,
+      raw: 'without level',
+      fields: { message: 'without level' },
+    };
+    expect(filterRecords([...records, warning, withoutLevel], {
+      query: '',
+      levels: new Set(['WARNING', NO_LEVEL]),
+      maximumSequence: null,
+      clearedBefore: 0,
+    })).toEqual([warning, withoutLevel]);
+    expect(levelFilterKey('fatal')).toBe('CRITICAL');
+    expect(levelFilterKey(undefined)).toBe(NO_LEVEL);
   });
 
   it('maps all supported levels to color classes', () => {
