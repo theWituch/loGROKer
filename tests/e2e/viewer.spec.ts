@@ -5,8 +5,9 @@ test('shows paths, status, and parsed columns', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'LoGROKer' })).toBeVisible();
   await expect(page.getByText('Live', { exact: true })).toBeVisible();
-  await expect(page.locator('code').filter({ hasText: 'log.log' })).toBeVisible();
-  await expect(page.locator('code').filter({ hasText: 'config.yml' })).toBeVisible();
+  await page.locator('details.source-picker summary').click();
+  await expect(page.locator('.source-option').filter({ hasText: 'log.log' })).toBeVisible();
+  await expect(page.locator('.source-option').filter({ hasText: 'config.yml' })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'lines' })).toHaveCount(0);
   await expect(page.getByRole('columnheader', { name: 'timestamp' })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'message' })).toBeVisible();

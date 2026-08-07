@@ -297,14 +297,10 @@ export default function App() {
           </div>
         </div>
 
-        <div className="paths">
-          {status?.sources.map((source) => (
-            <div key={source.id}>
-              <PathLine label={source.name} value={source.logPath} />
-              {source.configPath && <PathLine label={`${source.name} config`} value={source.configPath} />}
-            </div>
-          )) ?? <PathLine label="SOURCES" value="Loading…" />}
-        </div>
+        <SourceSummary
+          sources={status?.sources ?? []}
+          selectedSourceIds={selectedSourceIds}
+        />
 
         <div className="status-panel">
           <span className={`connection-dot ${connection}`} />
@@ -347,7 +343,7 @@ export default function App() {
           </label>
         )}
 
-        {status && status.sources.length > 1 && (
+        {status && status.sources.length > 0 && (
           <details className="column-picker source-picker">
             <summary>Configurations <span>{selectedSourceIds.size}/{status.sources.length}</span></summary>
             <div className="column-menu">
@@ -356,7 +352,11 @@ export default function App() {
                 <button onClick={() => setSelectedSourceIds(new Set())}>Hide all</button>
               </div>
               {status.sources.map((source) => (
-                <label key={source.id} title={`${source.logPath}${source.configPath ? ` — ${source.configPath}` : ''}`}>
+                <label
+                  key={source.id}
+                  className="source-option"
+                  title={`${source.logPath}${source.configPath ? ` — ${source.configPath}` : ''}`}
+                >
                   <input
                     type="checkbox"
                     checked={selectedSourceIds.has(source.id)}
@@ -366,7 +366,13 @@ export default function App() {
                       return next;
                     })}
                   />
-                  <span>{source.name}</span>
+                  <span className="source-option-main">
+                    <strong>{source.name}</strong>
+                    <small>
+                      {shortPath(source.logPath)}
+                      {source.configPath ? ` · ${shortPath(source.configPath)}` : ''}
+                    </small>
+                  </span>
                   <small className={`source-state source-state-${source.state}`}>{source.state}</small>
                 </label>
               ))}
@@ -646,13 +652,44 @@ export default function App() {
   );
 }
 
-function PathLine({ label, value }: { label: string; value: string }) {
+function SourceSummary({
+  sources,
+  selectedSourceIds,
+}: {
+  sources: ViewerStatus['sources'];
+  selectedSourceIds: Set<string>;
+}) {
+  const visibleCount = sources.filter((source) => selectedSourceIds.has(source.id)).length;
+  const maxBadges = 4;
+  const displayed = sources.slice(0, maxBadges);
+  const hiddenCount = Math.max(0, sources.length - displayed.length);
+
   return (
-    <div className="path-line">
-      <span>{label}</span>
-      <code title={value}>{value}</code>
+    <div className="source-summary" aria-label="Log sources">
+      <div className="source-summary-count">
+        <span>SOURCES</span>
+        <strong>{visibleCount}/{sources.length}</strong>
+      </div>
+      <div className="source-badges">
+        {displayed.map((source) => (
+          <span
+            key={source.id}
+            className={`source-badge source-badge-${source.state}`}
+            title={`${source.name}: ${source.logPath}${source.configPath ? ` — ${source.configPath}` : ''}`}
+          >
+            <i aria-hidden="true" />
+            <span>{source.name}</span>
+          </span>
+        ))}
+        {hiddenCount > 0 && <span className="source-badge source-badge-more">+{hiddenCount}</span>}
+        {sources.length === 0 && <span className="source-summary-loading">Loading…</span>}
+      </div>
     </div>
   );
+}
+
+function shortPath(value: string): string {
+  return value.split(/[\\/]/).at(-1) ?? value;
 }
 
 function parseEvent<T>(event: Event): T {
