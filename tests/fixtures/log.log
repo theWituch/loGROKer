@@ -1,0 +1,39 @@
+2026-07-28T11:52:00.001+02:00 INFO [demo] [pid=1 thread="main"] Test message 01
+2026-07-28T11:52:00.002+02:00 INFO [demo] [pid=1 thread="main"] Test message 02
+2026-07-28T11:52:00.003+02:00 INFO [demo] [pid=1 thread="main"] Test message 03
+2026-07-28T11:52:00.004+02:00 INFO [demo] [pid=1 thread="main"] Test message 04
+2026-07-28T11:52:00.005+02:00 INFO [demo] [pid=1 thread="main"] Test message 05
+2026-07-28T11:52:00.006+02:00 INFO [demo] [pid=1 thread="main"] Test message 06
+2026-07-28T11:52:00.007+02:00 INFO [demo] [pid=1 thread="main"] Test message 07
+2026-07-28T11:52:00.008+02:00 INFO [demo] [pid=1 thread="main"] Test message 08
+2026-07-28T11:52:00.009+02:00 INFO [demo] [pid=1 thread="main"] Test message 09
+2026-07-28T11:52:00.010+02:00 INFO [demo] [pid=1 thread="main"] Test message 10
+2026-07-28T11:52:00.011+02:00 INFO [demo] [pid=1 thread="main"] Test message 11
+2026-07-28T11:52:00.012+02:00 INFO [demo] [pid=1 thread="main"] Test message 12
+2026-07-28T11:52:00.013+02:00 INFO [demo] [pid=1 thread="main"] Test message 13
+2026-07-28T11:52:00.014+02:00 INFO [demo] [pid=1 thread="main"] Test message 14
+2026-07-28T11:52:00.015+02:00 INFO [demo] [pid=1 thread="main"] Test message 15
+2026-07-28T11:52:00.016+02:00 INFO [demo] [pid=1 thread="main"] Test message 16
+2026-07-28T11:52:00.017+02:00 INFO [demo] [pid=1 thread="main"] Test message 17
+2026-07-28T11:52:00.018+02:00 INFO [demo] [pid=1 thread="main"] Test message 18
+2026-07-28T11:52:00.019+02:00 INFO [demo] [pid=1 thread="main"] Test message 19
+2026-07-28T11:52:00.020+02:00 INFO [demo] [pid=1 thread="main"] Test message 20
+2026-07-28T11:52:00.021+02:00 INFO [demo] [pid=1 thread="main"] Test message 21
+2026-07-28T11:52:00.022+02:00 INFO [demo] [pid=1 thread="main"] Test message 22
+2026-07-28T11:52:00.023+02:00 INFO [demo] [pid=1 thread="main"] Test message 23
+2026-07-28T11:52:00.024+02:00 INFO [demo] [pid=1 thread="main"] Test message 24
+2026-07-28T11:52:00.025+02:00 INFO [demo] [pid=1 thread="main"] Test message 25
+2026-07-28T11:53:12.444+02:00 ERROR [werkzeug] [pid=22720 thread="Thread-33 (process_request_thread)"] Could not send notification through telegram
+Traceback (most recent call last):
+  File "E:\_IKARIAM\TestApp\test-app\test.app\helpers\botComm.py", line 153, in send_notification
+    results[provider.name] = provider.send(session, message)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\_IKARIAM\TestApp\test-app\test.app\helpers\botComm.py", line 52, in send
+    response = get(
+               ^^^^
+  File "E:\_IKARIAM\TestApp\test-app\tests\test.app\helpers\test_bot_comm.py", line 129, in <lambda>
+    lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("Telegram down")),
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\_IKARIAM\TestApp\test-app\tests\test.app\helpers\test_bot_comm.py", line 129, in <genexpr>
+    lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("Telegram down")),
+RuntimeError: Telegram down

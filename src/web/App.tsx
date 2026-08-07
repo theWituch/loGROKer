@@ -25,6 +25,7 @@ import { commonLevelClass, filterRecords, mergeRecords } from './model';
 import './styles.css';
 
 const VISIBILITY_KEY = 'logroker.columnVisibility.v1';
+const SOURCES_KEY = 'logroker.sourceVisibility.v1';
 const FALLBACK_LIMIT = 10_000;
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected';
@@ -33,6 +34,8 @@ export default function App() {
   const [records, setRecords] = useState<LogRecord[]>([]);
   const [fields, setFields] = useState<string[]>([]);
   const [status, setStatus] = useState<ViewerStatus | null>(null);
+  const [selectedSourceIds, setSelectedSourceIds] = useState<Set<string>>(readSourceVisibility);
+  const [sourceVisibilityReady, setSourceVisibilityReady] = useState(false);
   const [connection, setConnection] = useState<ConnectionState>('connecting');
   const [query, setQuery] = useState('');
   const [level, setLevel] = useState('');
@@ -96,6 +99,23 @@ export default function App() {
   }, [columnVisibility]);
 
   useEffect(() => {
+    if (!status) return;
+    const ids = status.sources.map((source) => source.id);
+    setSelectedSourceIds((current) => {
+      const stored = readStoredSourceVisibility();
+      const next = new Set(ids.filter((id) => current.has(id) || !stored));
+      return next.size === current.size && [...next].every((id) => current.has(id)) ? current : next;
+    });
+    setSourceVisibilityReady(true);
+  }, [status?.sources]);
+
+  useEffect(() => {
+    if (sourceVisibilityReady) {
+      localStorage.setItem(SOURCES_KEY, JSON.stringify([...selectedSourceIds]));
+    }
+  }, [selectedSourceIds, sourceVisibilityReady]);
+
+  useEffect(() => {
     if (!selectedRecord) {
       return;
     }
@@ -114,8 +134,9 @@ export default function App() {
     : records.filter((record) => record.sequence > pausedAt).length;
 
   const levels = useMemo(
-    () => [...new Set(records.map((record) => record.fields.level).filter(Boolean))].sort(),
-    [records],
+    () => [...new Set(records.filter((record) => selectedSourceIds.has(record.sourceId))
+      .map((record) => record.fields.level).filter(Boolean))].sort(),
+    [records, selectedSourceIds],
   );
 
   useEffect(() => {
@@ -124,14 +145,19 @@ export default function App() {
     }
   }, [level, levels]);
 
+  const sourceRecords = useMemo(
+    () => records.filter((record) => selectedSourceIds.has(record.sourceId)),
+    [records, selectedSourceIds],
+  );
+
   const visibleRecords = useMemo(
-    () => filterRecords(records, {
+    () => filterRecords(sourceRecords, {
       query,
       level,
       maximumSequence: pausedAt,
       clearedBefore,
     }),
-    [records, query, level, pausedAt, clearedBefore],
+    [sourceRecords, query, level, pausedAt, clearedBefore],
   );
 
   useEffect(() => {
@@ -272,11 +298,12 @@ export default function App() {
         </div>
 
         <div className="paths">
-          <PathLine label="LOG" value={status?.logPath ?? 'Loading…'} />
-          <PathLine
-            label="CONFIG"
-            value={status?.configPath ?? 'brak — raw mode'}
-          />
+          {status?.sources.map((source) => (
+            <div key={source.id}>
+              <PathLine label={source.name} value={source.logPath} />
+              {source.configPath && <PathLine label={`${source.name} config`} value={source.configPath} />}
+            </div>
+          )) ?? <PathLine label="SOURCES" value="Loading…" />}
         </div>
 
         <div className="status-panel">
@@ -318,6 +345,33 @@ export default function App() {
               {levels.map((value) => <option key={value}>{value}</option>)}
             </select>
           </label>
+        )}
+
+        {status && status.sources.length > 1 && (
+          <details className="column-picker source-picker">
+            <summary>Configurations <span>{selectedSourceIds.size}/{status.sources.length}</span></summary>
+            <div className="column-menu">
+              <div className="column-menu-actions">
+                <button onClick={() => setSelectedSourceIds(new Set(status.sources.map((source) => source.id)))}>Show all</button>
+                <button onClick={() => setSelectedSourceIds(new Set())}>Hide all</button>
+              </div>
+              {status.sources.map((source) => (
+                <label key={source.id} title={`${source.logPath}${source.configPath ? ` — ${source.configPath}` : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={selectedSourceIds.has(source.id)}
+                    onChange={() => setSelectedSourceIds((current) => {
+                      const next = new Set(current);
+                      if (next.has(source.id)) next.delete(source.id); else next.add(source.id);
+                      return next;
+                    })}
+                  />
+                  <span>{source.name}</span>
+                  <small className={`source-state source-state-${source.state}`}>{source.state}</small>
+                </label>
+              ))}
+            </div>
+          </details>
         )}
 
         <details className="column-picker">
@@ -436,7 +490,10 @@ export default function App() {
                 {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                   const row = rows[virtualRow.index];
                   const previous = virtualRow.index > 0 ? rows[virtualRow.index - 1].original : null;
-                  const generationStart = previous && previous.generation !== row.original.generation;
+                    const generationStart = previous && (
+                      previous.sourceId !== row.original.sourceId
+                      || previous.generation !== row.original.generation
+                    );
                   const latestVisible = virtualRow.index === rows.length - 1;
                   const visibleCells = row.getVisibleCells();
                   const multilineCell = row.original.multiline
@@ -546,7 +603,7 @@ export default function App() {
           >
             <header>
               <div>
-                <span className="drawer-kicker">Rekord #{selectedRecord.sequence}</span>
+                <span className="drawer-kicker">{selectedRecord.sourceName} · rekord #{selectedRecord.sequence}</span>
                 <h2>{selectedRecord.lineCount} {selectedRecord.lineCount === 1 ? 'line' : 'lines'}</h2>
               </div>
               <button className="drawer-close" onClick={() => setSelectedRecord(null)} aria-label="Close">
@@ -609,6 +666,19 @@ function readVisibility(): VisibilityState {
   } catch {
     return {};
   }
+}
+
+function readStoredSourceVisibility(): string[] | null {
+  try {
+    const stored = localStorage.getItem(SOURCES_KEY);
+    return stored ? JSON.parse(stored) as string[] : null;
+  } catch {
+    return null;
+  }
+}
+
+function readSourceVisibility(): Set<string> {
+  return new Set(readStoredSourceVisibility() ?? []);
 }
 
 function defaultColumnSize(field: string): number {

@@ -17,6 +17,38 @@ afterEach(async () => {
 });
 
 describe('ViewerService', () => {
+  it('loads multiple logs with independent configurations into a shared buffer', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'logroker-multi-'));
+    directories.push(directory);
+    const appLog = join(directory, 'app.log');
+    const accessLog = join(directory, 'access.log');
+    const appConfig = join(directory, 'app.yml');
+    const accessConfig = join(directory, 'access.yml');
+    await writeFile(appLog, 'app\n', 'utf8');
+    await writeFile(accessLog, '200 access\n', 'utf8');
+    await writeFile(appConfig, 'match: "^%{WORD:message}$"\npatterns: {}\n', 'utf8');
+    await writeFile(accessConfig, 'match: "^%{INT:status} %{WORD:message}$"\npatterns: {}\n', 'utf8');
+
+    const service = new ViewerService({
+      sources: [
+        { id: 'app', name: 'app', logPath: appLog, configPath: appConfig },
+        { id: 'access', name: 'access', logPath: accessLog, configPath: accessConfig },
+      ],
+      initialLines: 10,
+      maxRecords: 2,
+      usePolling: true,
+    });
+    services.push(service);
+    await service.start();
+
+    expect(service.snapshot().status.sources.map((source) => source.name)).toEqual(['app', 'access']);
+    expect(service.snapshot().records).toEqual(expect.arrayContaining([
+      expect.objectContaining({ sourceId: 'app', sourceName: 'app', fields: { message: 'app' } }),
+      expect.objectContaining({ sourceId: 'access', sourceName: 'access', fields: { status: '200', message: 'access' } }),
+    ]));
+    expect(service.snapshot().status.buffered).toBe(2);
+  });
+
   it('assembles the supplied sample into logical records before GROK parsing', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'logroker-multiline-'));
     directories.push(directory);
@@ -26,7 +58,16 @@ describe('ViewerService', () => {
     const physicalLines = source.split(/\r?\n/).filter(Boolean);
     const logicalRecords = physicalLines.filter((line) => /^\d{4}-\d{2}-\d{2}T/.test(line));
     await writeFile(logPath, source, 'utf8');
-    await writeFile(configPath, await readFile(resolve('config.yml'), 'utf8'), 'utf8');
+    await writeFile(configPath, `
+match: >-
+  ^%{TIMESTAMP_ISO8601:timestamp}\\s+%{LOGLEVEL:level}\\s+\\[%{DATA:logger}\\]\\s+\\[pid=%{NUMBER:pid}\\s+thread="%{DATA:thread}"\\]\\s+%{MULTILINE_DATA:message}$
+patterns:
+  MULTILINE_DATA: '[\\s\\S]*'
+multiline:
+  pattern: '^%{TIMESTAMP_ISO8601}'
+  negate: true
+  what: previous
+`, 'utf8');
 
     const service = new ViewerService({
       logPath,

@@ -297,6 +297,24 @@ button {
   font-size: 12px;
 }
 
+.source-picker .column-menu label {
+  gap: 0.55rem;
+}
+
+.source-state {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.source-state-error {
+  color: var(--danger);
+}
+
+.source-state-waiting {
+  color: var(--warning);
+}
+
 .column-menu input,
 .toggle-control input {
   accent-color: var(--accent);

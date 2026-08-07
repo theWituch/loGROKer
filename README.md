@@ -17,6 +17,17 @@ npm run build
 npm start -- --log "E:\logs\log.log" --config "E:\logs\config.yml"
 ```
 
+Multiple logs can be started. The `--log` and `--config` arguments are paired by
+occurrence order, and a configuration name can be explicit:
+
+```powershell
+npm start -- --log "E:\logs\app.log" --config "app|E:\logs\app.yml" `
+  --log "E:\logs\access.log" --config "E:\logs\access.yml"
+```
+
+Configurations can be selected with checkboxes; the selection is stored
+in the browser.
+
 The panel will be available at `http://127.0.0.1:3000`. The server deliberately does not
 listen on network interfaces.
 
@@ -38,8 +49,8 @@ Frontend works wtedy pod `http://127.0.0.1:5173`.
 
 | Argument | Meaning | Default |
 | --- | --- | --- |
-| `--log <path>` | Obserwowany plik; wymagany | — |
-| `--config <path>` | Opcjonalny plik konfiguracji YAML | raw mode |
+| `--log <path>` | Watched file; can be provided multiple times | — |
+| `--config <name\|path>` | YAML for the corresponding `--log`; can be provided multiple times | raw mode |
 | `--port <number>` | Port panelu | `3000` |
 | `--tail <number>` | Number of initial lines | `1000` |
 | `--max-records <number>` | Logical record buffer size | `10000` |

@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import { basename, extname } from 'node:path';
 import chokidar, { type FSWatcher } from 'chokidar';
 import type {
   LogRecord,
@@ -8,6 +9,7 @@ import type {
   ViewerSnapshot,
   ViewerStatus,
 } from '../shared/contracts.js';
+import type { SourceDefinition } from './cli.js';
 import { FileTailer, type LineBatch } from './tailer.js';
 import { GrokParserService } from './grok-parser-service.js';
 import { errorMessage, loadConfig } from './config.js';
@@ -21,8 +23,16 @@ import { RingBuffer } from './ring-buffer.js';
 const PARSE_BATCH_SIZE = 500;
 
 export interface ViewerServiceOptions {
-  logPath: string;
-  configPath: string | null;
+  sources?: SourceDefinition[];
+  logPath?: string;
+  configPath?: string | null;
+  initialLines: number;
+  maxRecords: number;
+  usePolling: boolean;
+}
+
+interface SingleViewerServiceOptions {
+  source: SourceDefinition;
   initialLines: number;
   maxRecords: number;
   usePolling: boolean;
@@ -36,7 +46,7 @@ interface BufferedRecord extends LogRecord {
   sourceLines: string[];
 }
 
-export class ViewerService extends EventEmitter<ViewerServiceEvents> {
+class SingleViewerService extends EventEmitter<ViewerServiceEvents> {
   private readonly records: RingBuffer<BufferedRecord>;
   private readonly tailer: FileTailer;
   private readonly parser = new GrokParserService();
@@ -54,18 +64,18 @@ export class ViewerService extends EventEmitter<ViewerServiceEvents> {
   private stateMessage = 'Starting viewer…';
   private activeConfig: ParserConfig | null = null;
 
-  constructor(public readonly options: ViewerServiceOptions) {
+  constructor(public readonly options: SingleViewerServiceOptions) {
     super();
     this.records = new RingBuffer(options.maxRecords);
-    this.tailer = new FileTailer(options.logPath, {
+    this.tailer = new FileTailer(options.source.logPath, {
       initialLines: options.initialLines,
       usePolling: options.usePolling,
     });
   }
 
   async start(): Promise<void> {
-    if (this.options.configPath) {
-      this.activeConfig = await loadConfig(this.options.configPath);
+    if (this.options.source.configPath) {
+      this.activeConfig = await loadConfig(this.options.source.configPath);
       await this.parser.configure(this.activeConfig);
       this.assembler = createAssembler(this.activeConfig);
     }
@@ -117,8 +127,8 @@ export class ViewerService extends EventEmitter<ViewerServiceEvents> {
     await this.flushAssembler('initial', false);
     this.initializing = false;
 
-    if (this.options.configPath) {
-      this.watchConfig(this.options.configPath);
+    if (this.options.source.configPath) {
+      this.watchConfig(this.options.source.configPath);
     }
 
     this.state = 'live';
@@ -207,7 +217,9 @@ export class ViewerService extends EventEmitter<ViewerServiceEvents> {
         const fields = parsed[index];
         const sequence = ++this.sequence;
         output.push({
-          id: `${event.generation}:${sequence}`,
+          id: `${this.options.source.id}:${event.generation}:${sequence}`,
+          sourceId: this.options.source.id,
+          sourceName: this.options.source.name,
           generation: event.generation,
           sequence,
           raw: event.raw,
@@ -285,14 +297,14 @@ export class ViewerService extends EventEmitter<ViewerServiceEvents> {
   }
 
   private async reloadConfig(): Promise<void> {
-    if (!this.options.configPath) {
+    if (!this.options.source.configPath) {
       return;
     }
 
     const previousConfig = this.activeConfig;
     try {
       const sourceBatches = this.collectSourceBatches();
-      const candidate = await loadConfig(this.options.configPath);
+      const candidate = await loadConfig(this.options.source.configPath);
       await this.parser.configure(candidate);
       const candidateAssembler = createAssembler(candidate);
       const assembled: AssembledEvent[] = [];
@@ -389,8 +401,8 @@ export class ViewerService extends EventEmitter<ViewerServiceEvents> {
     return {
       state: this.state,
       message: this.stateMessage,
-      logPath: this.options.logPath,
-      configPath: this.options.configPath,
+      logPath: this.options.source.logPath,
+      configPath: this.options.source.configPath,
       parserMode: this.activeConfig ? 'grok' : 'raw',
       parserError: this.parserError,
       generation: this.tailer.generation,
@@ -402,8 +414,207 @@ export class ViewerService extends EventEmitter<ViewerServiceEvents> {
       buffered: records.length,
       physicalLines,
       pendingMultilineLines: this.assembler?.pendingLineCount() ?? 0,
+      sources: [{
+        id: this.options.source.id,
+        name: this.options.source.name,
+        logPath: this.options.source.logPath,
+        configPath: this.options.source.configPath,
+        state: this.state,
+        message: this.stateMessage,
+        parserMode: this.activeConfig ? 'grok' : 'raw',
+        parserError: this.parserError,
+        generation: this.tailer.generation,
+        revision: this.revision,
+        matched,
+        unmatched,
+        buffered: records.length,
+        physicalLines,
+        pendingMultilineLines: this.assembler?.pendingLineCount() ?? 0,
+      }],
     };
   }
+}
+
+export class ViewerService extends EventEmitter<ViewerServiceEvents> {
+  private readonly records: RingBuffer<LogRecord>;
+  private readonly sources: SourceDefinition[];
+  private readonly children: SingleViewerService[] = [];
+  private readonly sourceStatuses = new Map<string, ViewerStatus['sources'][number]>();
+  private sequence = 0;
+  private initializing = true;
+
+  constructor(public readonly options: ViewerServiceOptions) {
+    super();
+    this.sources = normalizeSources(options);
+    this.records = new RingBuffer(options.maxRecords);
+  }
+
+  async start(): Promise<void> {
+    for (const source of this.sources) {
+      const child = new SingleViewerService({
+        source,
+        initialLines: this.options.initialLines,
+        maxRecords: this.options.maxRecords,
+        usePolling: this.options.usePolling,
+      });
+      this.children.push(child);
+      child.on('event', (event) => this.handleChildEvent(event));
+      try {
+        await child.start();
+      } catch (error) {
+        this.sourceStatuses.set(source.id, errorStatus(source, error));
+      }
+    }
+    this.initializing = false;
+    this.publish({ type: 'snapshot', data: this.snapshot() });
+  }
+
+  async stop(): Promise<void> {
+    await Promise.all(this.children.map((child) => child.stop()));
+  }
+
+  snapshot(): ViewerSnapshot {
+    const records = this.records.toArray();
+    return {
+      status: this.buildStatus(records),
+      fields: collectFields(records),
+      records,
+    };
+  }
+
+  private handleChildEvent(event: ServerEvent): void {
+    if (event.type === 'snapshot') {
+      this.replaceSource(event.data.status.sources[0], event.data.records);
+    } else if (event.type === 'append') {
+      const records = event.data.records.map((record) => this.toGlobalRecord(record));
+      this.records.push(...records);
+      this.updateSourceStatus(records[0]?.sourceId);
+      if (!this.initializing) {
+        this.publish({
+          type: 'append',
+          data: { records, fields: collectFields(this.records.toArray()) },
+        });
+        this.emitStatus();
+      }
+      return;
+    } else {
+      this.sourceStatuses.set(event.data.sources[0].id, event.data.sources[0]);
+      if (!this.initializing) {
+        this.emitStatus();
+      }
+      return;
+    }
+
+    if (!this.initializing) {
+      this.publish({ type: 'snapshot', data: this.snapshot() });
+    }
+  }
+
+  private replaceSource(
+    status: ViewerStatus['sources'][number],
+    records: LogRecord[],
+  ): void {
+    this.sourceStatuses.set(status.id, status);
+    const remaining = this.records.toArray().filter((record) => record.sourceId !== status.id);
+    const replacement = records.map((record) => this.toGlobalRecord(record));
+    this.records.replace([...remaining, ...replacement].sort((left, right) => left.sequence - right.sequence));
+  }
+
+  private toGlobalRecord(record: LogRecord): LogRecord {
+    const sequence = ++this.sequence;
+    return { ...record, id: `${record.sourceId}:${sequence}`, sequence };
+  }
+
+  private updateSourceStatus(sourceId: string | undefined): void {
+    if (!sourceId) return;
+    const child = this.children.find((candidate) => candidate.snapshot().status.sources[0]?.id === sourceId);
+    const status = child?.snapshot().status.sources[0];
+    if (status) this.sourceStatuses.set(sourceId, status);
+  }
+
+  private emitStatus(): void {
+    this.publish({ type: 'status', data: this.buildStatus(this.records.toArray()) });
+  }
+
+  private publish(event: ServerEvent): boolean {
+    return super.emit('event', event);
+  }
+
+  private buildStatus(records: LogRecord[]): ViewerStatus {
+    const sources = this.sources.map((source) => {
+      const status = this.sourceStatuses.get(source.id) ?? startingStatus(source);
+      const sourceRecords = records.filter((record) => record.sourceId === source.id);
+      return {
+        ...status,
+        matched: sourceRecords.filter((record) => record.parseStatus === 'matched').length,
+        unmatched: sourceRecords.filter((record) => record.parseStatus === 'unmatched').length,
+        buffered: sourceRecords.length,
+        physicalLines: sourceRecords.reduce((sum, record) => sum + record.lineCount, 0),
+      };
+    });
+    let matched = 0;
+    let unmatched = 0;
+    let physicalLines = 0;
+    for (const record of records) {
+      physicalLines += record.lineCount;
+      if (record.parseStatus === 'matched') matched += 1;
+      if (record.parseStatus === 'unmatched') unmatched += 1;
+    }
+    const live = sources.some((source) => source.state === 'live');
+    const waiting = sources.some((source) => source.state === 'waiting');
+    return {
+      state: live ? 'live' : waiting ? 'waiting' : sources.some((source) => source.state === 'error') ? 'error' : 'starting',
+      message: `${sources.filter((source) => source.state === 'live').length}/${sources.length} sources are live.`,
+      parserMode: sources.every((source) => source.parserMode === 'raw') ? 'raw' : 'grok',
+      parserError: sources.find((source) => source.parserError)?.parserError ?? null,
+      generation: Math.max(0, ...sources.map((source) => source.generation)),
+      revision: Math.max(1, ...sources.map((source) => source.revision)),
+      initialLines: this.options.initialLines,
+      maxRecords: this.options.maxRecords,
+      matched,
+      unmatched,
+      buffered: records.length,
+      physicalLines,
+      pendingMultilineLines: sources.reduce((sum, source) => sum + source.pendingMultilineLines, 0),
+      sources,
+    };
+  }
+}
+
+function normalizeSources(options: ViewerServiceOptions): SourceDefinition[] {
+  if (options.sources?.length) return options.sources;
+  if (!options.logPath) throw new Error('No log sources.');
+  const name = basename(options.configPath ?? options.logPath, extname(options.configPath ?? options.logPath));
+  return [{
+    id: name,
+    name,
+    logPath: options.logPath,
+    configPath: options.configPath ?? null,
+  }];
+}
+
+function startingStatus(source: SourceDefinition): ViewerStatus['sources'][number] {
+  return {
+    id: source.id,
+    name: source.name,
+    logPath: source.logPath,
+    configPath: source.configPath,
+    state: 'starting',
+    message: 'Starting viewer…',
+    parserMode: source.configPath ? 'grok' : 'raw',
+    parserError: null,
+    generation: 0,
+    revision: 1,
+    matched: 0,
+    unmatched: 0,
+    buffered: 0,
+    physicalLines: 0,
+    pendingMultilineLines: 0,
+  };
+}
+
+function errorStatus(source: SourceDefinition, error: unknown): ViewerStatus['sources'][number] {
+  return { ...startingStatus(source), state: 'error', message: errorMessage(error), parserError: errorMessage(error) };
 }
 
 function createAssembler(config: ParserConfig): MultilineAssembler | null {

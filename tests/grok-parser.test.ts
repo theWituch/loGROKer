@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { loadConfig } from '../src/server/config';
+import { parseConfig } from '../src/server/config';
 import { GrokParserService } from '../src/server/grok-parser-service';
 
 const services: GrokParserService[] = [];
@@ -14,7 +14,16 @@ describe('GrokParserService', () => {
   it('parses the supplied sample into the expected fields', async () => {
     const service = new GrokParserService();
     services.push(service);
-    await service.configure(await loadConfig(resolve('config.yml')));
+    await service.configure(parseConfig(`
+match: >-
+  ^%{TIMESTAMP_ISO8601:timestamp}\\s+%{LOGLEVEL:level}\\s+\\[%{DATA:logger}\\]\\s+\\[pid=%{NUMBER:pid}\\s+thread="%{DATA:thread}"\\]\\s+%{MULTILINE_DATA:message}$
+patterns:
+  MULTILINE_DATA: '[\\s\\S]*'
+multiline:
+  pattern: '^%{TIMESTAMP_ISO8601}'
+  negate: true
+  what: previous
+`));
 
     const lines = (await readFile(resolve('log.log'), 'utf8'))
       .split(/\r?\n/)

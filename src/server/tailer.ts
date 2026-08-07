@@ -52,19 +52,25 @@ export class FileTailer extends EventEmitter<TailerEvents> {
     if (this.started) {
       throw new Error('Tailer is already running.');
     }
-    const initialStat = await stat(this.path);
-    if (!initialStat.isFile()) {
+    let initialStat: Stats | null;
+    try {
+      initialStat = await stat(this.path);
+    } catch (error) {
+      const candidate = asError(error) as NodeJS.ErrnoException;
+      if (candidate.code !== 'ENOENT') throw candidate;
+      initialStat = null;
+      this.missing = true;
+    }
+    if (initialStat && !initialStat.isFile()) {
       throw new Error(`The log path does not point to a regular file: ${this.path}`);
     }
 
-    const initial = await readLastCompleteLines(
-      this.path,
-      this.options.initialLines,
-      initialStat.size,
-    );
-    this.offset = initialStat.size;
+    const initial = initialStat
+      ? await readLastCompleteLines(this.path, this.options.initialLines, initialStat.size)
+      : { lines: [], remainder: '' };
+    this.offset = initialStat?.size ?? 0;
     this.remainder = initial.remainder;
-    this.fileIdentity = identityOf(initialStat);
+    this.fileIdentity = initialStat ? identityOf(initialStat) : '';
     this.started = true;
 
     this.watcher = chokidar.watch(this.path, {
@@ -108,6 +114,10 @@ export class FileTailer extends EventEmitter<TailerEvents> {
       this.watcher?.once('error', onError);
     });
 
+    if (!initialStat) {
+      this.emit('waiting', 'The log file does not exist. Waiting for it to be created.');
+      return { generation: this.generation, lines: initial.lines };
+    }
     await this.drain();
     this.emit('live');
     return { generation: this.generation, lines: initial.lines };

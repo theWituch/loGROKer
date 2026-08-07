@@ -13,6 +13,8 @@ export type MultilineFlushReason =
 
 export interface LogRecord {
   id: string;
+  sourceId: string;
+  sourceName: string;
   generation: number;
   sequence: number;
   raw: string;
@@ -29,14 +31,34 @@ export type ViewerState = 'starting' | 'live' | 'waiting' | 'error';
 export interface ViewerStatus {
   state: ViewerState;
   message: string;
+  /** Kept for compatibility with single-source consumers. */
+  logPath?: string;
+  configPath?: string | null;
+  parserMode?: 'raw' | 'grok';
+  parserError?: string | null;
+  generation?: number;
+  revision?: number;
+  initialLines: number;
+  maxRecords: number;
+  matched: number;
+  unmatched: number;
+  buffered: number;
+  physicalLines: number;
+  pendingMultilineLines: number;
+  sources: ViewerSourceStatus[];
+}
+
+export interface ViewerSourceStatus {
+  id: string;
+  name: string;
   logPath: string;
   configPath: string | null;
+  state: ViewerState;
+  message: string;
   parserMode: 'raw' | 'grok';
   parserError: string | null;
   generation: number;
   revision: number;
-  initialLines: number;
-  maxRecords: number;
   matched: number;
   unmatched: number;
   buffered: number;

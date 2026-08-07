@@ -16,8 +16,10 @@ try {
     port: options.port,
   });
   console.log(`LoGROKer: ${address}`);
-  console.log(`Log: ${options.logPath}`);
-  console.log(`Config: ${options.configPath ?? 'brak (raw mode)'}`);
+  for (const source of options.sources) {
+    console.log(`Source ${source.name}: ${source.logPath}`);
+    console.log(`Config: ${source.configPath ?? 'brak (raw mode)'}`);
+  }
 
   let closing = false;
   const close = async () => {

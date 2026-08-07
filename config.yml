@@ -1,5 +1,5 @@
 match: >-
-  ^%{TIMESTAMP_ISO8601:timestamp}\s+%{LOGLEVEL:level}\s+\[%{DATA:logger}\]\s+\[pid=%{NUMBER:pid}\s+thread="%{DATA:thread}"\]\s+%{MULTILINE_DATA:message}$
+  ^%{TIMESTAMP_ISO8601:timestamp}\s+%{LOGLEVEL:level}\s+\[%{DATA:logger}\]\s+\[pid=%{NUMBER:pid:int}\s+thread_id=%{NUMBER:thread_id:int}\s+thread_name="%{DATA:thread_name}"\s+task_id=%{DATA:task_id}\]\s+%{GREEDYDATA:message}$
 
 patterns:
   MULTILINE_DATA: '[\s\S]*'

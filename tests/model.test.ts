@@ -5,6 +5,8 @@ import { filterRecords, mergeRecords } from '../src/web/model';
 const records: LogRecord[] = [
   {
     id: '0:1',
+    sourceId: 'test',
+    sourceName: 'test',
     generation: 0,
     sequence: 1,
     raw: 'INFO started',
@@ -17,6 +19,8 @@ const records: LogRecord[] = [
   },
   {
     id: '0:2',
+    sourceId: 'test',
+    sourceName: 'test',
     generation: 0,
     sequence: 2,
     raw: 'ERROR failure',
