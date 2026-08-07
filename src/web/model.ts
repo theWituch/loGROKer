@@ -45,9 +45,15 @@ export function filterRecords(
 export function commonLevelClass(level: string | undefined): string {
   const normalized = level?.toUpperCase();
   if (!normalized) return '';
-  if (normalized === 'WARN') return 'level-warning';
-  if (['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', 'FATAL'].includes(normalized)) {
-    return `level-${normalized.toLowerCase()}`;
-  }
-  return '';
+  const classes: Record<string, string> = {
+    TRACE: 'level-trace',
+    DEBUG: 'level-debug',
+    INFO: 'level-info',
+    WARN: 'level-warning',
+    WARNING: 'level-warning',
+    ERROR: 'level-error',
+    CRITICAL: 'level-critical',
+    FATAL: 'level-critical',
+  };
+  return classes[normalized] ?? '';
 }

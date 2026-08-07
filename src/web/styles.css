@@ -600,13 +600,31 @@ button {
   font-weight: 800;
 }
 
+.log-table tr.level-trace {
+  background: rgba(90, 169, 255, 0.03);
+}
+
+.level-trace.level-badge {
+  color: #5aa9ff;
+  background: #112b49;
+}
+
 .log-table tr.level-debug {
-  color: #8295a8;
+  background: rgba(210, 140, 255, 0.035);
+}
+
+.level-debug.level-badge {
+  color: #d28cff;
+  background: #321b46;
+}
+
+.log-table tr.level-info {
+  background: rgba(99, 214, 192, 0.025);
 }
 
 .level-info.level-badge {
-  color: #74c4ff;
-  background: #112c40;
+  color: #63d6c0;
+  background: #12342f;
 }
 
 .log-table tr.level-warning {
@@ -618,17 +636,22 @@ button {
   background: #3a3117;
 }
 
-.log-table tr.level-error,
-.log-table tr.level-critical,
-.log-table tr.level-fatal {
-  background: rgba(255, 83, 101, 0.05);
+.log-table tr.level-error {
+  background: rgba(255, 154, 118, 0.045);
 }
 
-.level-error.level-badge,
-.level-critical.level-badge,
-.level-fatal.level-badge {
-  color: #ff8c96;
-  background: #3b1b25;
+.level-error.level-badge {
+  color: #ff9a76;
+  background: #40231c;
+}
+
+.log-table tr.level-critical {
+  background: rgba(255, 102, 143, 0.05);
+}
+
+.level-critical.level-badge {
+  color: #ff668f;
+  background: #421a2f;
 }
 
 .row-unmatched {

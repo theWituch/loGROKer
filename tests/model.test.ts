@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LogRecord } from '../src/shared/contracts';
-import { filterRecords, mergeRecords } from '../src/web/model';
+import { commonLevelClass, filterRecords, mergeRecords } from '../src/web/model';
 
 const records: LogRecord[] = [
   {
@@ -46,5 +46,28 @@ describe('model widoku', () => {
       maximumSequence: 2,
       clearedBefore: 0,
     })).toEqual([records[1]]);
+  });
+
+  it('maps all supported levels to color classes', () => {
+    expect([
+      'TRACE',
+      'DEBUG',
+      'INFO',
+      'WARN',
+      'WARNING',
+      'ERROR',
+      'CRITICAL',
+      'FATAL',
+    ].map(commonLevelClass)).toEqual([
+      'level-trace',
+      'level-debug',
+      'level-info',
+      'level-warning',
+      'level-warning',
+      'level-error',
+      'level-critical',
+      'level-critical',
+    ]);
+    expect(commonLevelClass('custom')).toBe('');
   });
 });
