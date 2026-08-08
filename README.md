@@ -4,9 +4,9 @@ A local, full-screen viewer for log files. It reads appended data in real time,
 assembles multiline events, parses them with GROK, and displays
 fields as configurable columns.
 
-## Wymagania
+## Requirements
 
-- Node.js 24 LTS lub nowszy
+- Node.js 24 LTS or newer
 - npm
 
 ## Installation and startup
@@ -43,20 +43,20 @@ In development mode, repository samples are used automatically:
 npm run dev
 ```
 
-Frontend works wtedy pod `http://127.0.0.1:5173`.
+Frontend works then on `http://127.0.0.1:5173`.
 
-## Argumenty CLI
+## CLI arguments
 
 | Argument | Meaning | Default |
 | --- | --- | --- |
 | `--log <path>` | Watched file; can be provided multiple times | — |
 | `--config <name\|path>` | YAML for the corresponding `--log`; can be provided multiple times | raw mode |
-| `--port <number>` | Port panelu | `3000` |
+| `--port <number>` | Panel port | `3000` |
 | `--tail <number>` | Number of initial lines | `1000` |
 | `--max-records <number>` | Logical record buffer size | `10000` |
-| `--poll` | Polling dla SMB/NFS | disabled |
+| `--poll` | Polling for SMB/NFS | disabled |
 
-## Plik konfiguracyjny
+## Configuration file
 
 The `config.yml` file contains the main GROK expression, custom patterns,
 and multiline event assembly rules:
@@ -82,8 +82,7 @@ multiline:
 definitions. The main expression must allow newline characters if it is to parse
 the complete multiline event — the example `MULTILINE_DATA` serves this purpose.
 
-Sekcja `multiline` jest opcjonalna. Jej semantyka odpowiada filtrowi multiline
-z Logstash:
+The `multiline` section is optional. Its semantics correspond to the multiline filter from Logstash:
 
 - `pattern` — GROK recognizing a boundary, e.g. a timestamp at the start of a line;
 - `negate` — inverts the match result;
@@ -91,14 +90,14 @@ z Logstash:
 - `what: next` — attaches selected lines to the next event;
 - `auto_flush_interval` — how many seconds without new data before publishing a record;
 - `max_lines` and `max_bytes` — safety limits for the record size;
-- `skip_newline` — skleja linie bez separatora `\n`.
+- `skip_newline` — glues lines without a separator `\n`.
 
-The defaults are respectively: `false`, `previous`, 2 sekundy, 500 lines,
-10 MiB oraz `false`. Setting `multiline: false` disables assembly.
+The defaults are respectively: `false`, `previous`, 2 seconds, 500 lines,
+10 MiB, and `false`. Setting `multiline: false` disables assembly.
 
 Saving an updated configuration automatically compiles it and reassembles
 events and recalculates the buffer. If the new configuration is invalid, the panel
-pokazuje komunikat, a ostatni poprawny parser nadal works.
+shows a message, and the last correct parser is still working.
 
 ## Viewer behavior
 
@@ -138,7 +137,7 @@ _sequence:>100
 The `AND`, `OR`, and `NOT` operators must be uppercase. Unquoted
 values are matched case-insensitively, while quoted values
 are case-sensitive. All fields returned by GROK are available, along with
-pola systemowe: `raw`, `_source`, `_status`, `_sequence`, `_lines` i `_multiline`.
+system fields: `raw`, `_source`, `_status`, `_sequence`, `_lines`, and `_multiline`.
 The `_sequence` and `_lines` fields are numbers and support comparisons such as `:>`, `:>=`
 and `:=`. The `*` and `?` wildcards are available, while regular expressions are
 disabled in this version.

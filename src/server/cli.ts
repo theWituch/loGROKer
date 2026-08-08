@@ -118,7 +118,7 @@ function integerOption(
   }
   const value = Number(raw);
   if (!Number.isInteger(value) || value < minimum || value > maximum) {
-    throw new Error(`${name} must be an integer from ${minimum} do ${maximum}.`);
+    throw new Error(`${name} must be an integer from ${minimum} to ${maximum}.`);
   }
   return value;
 }

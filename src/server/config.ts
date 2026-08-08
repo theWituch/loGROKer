@@ -147,7 +147,7 @@ function numberOption(
     return fallback;
   }
   if (typeof option !== 'number' || !Number.isFinite(option) || option < minimum || option > maximum) {
-    throw new Error(`Field "multiline.${key}" must be a number from ${minimum} do ${maximum}.`);
+    throw new Error(`Field "multiline.${key}" must be a number from ${minimum} to ${maximum}.`);
   }
   return option;
 }

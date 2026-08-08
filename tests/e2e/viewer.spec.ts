@@ -75,7 +75,7 @@ test('shows paths, status, and parsed columns', async ({ page }) => {
     element.scrollHeight - element.clientHeight - element.scrollTop
   ))).toBeLessThanOrEqual(1);
 
-  await page.getByRole('checkbox', { name: 'Blokuj najnowszy' }).check();
+  await page.getByRole('checkbox', { name: 'Lock newest' }).check();
   await expect(latestRow).toHaveClass(/row-pinned/);
   await page.locator('.table-scroll').evaluate((element) => {
     element.scrollTop = 0;

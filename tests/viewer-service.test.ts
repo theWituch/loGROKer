@@ -106,7 +106,7 @@ multiline:
     }
   });
 
-  it('emituje ostatni rekord multiline po auto_flush_interval', async () => {
+  it('emits last multiline record after auto_flush_interval', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'logroker-timeout-'));
     directories.push(directory);
     const logPath = join(directory, 'app.log');
@@ -137,7 +137,7 @@ multiline:
     await appendFile(logPath, '2025-11-07T10:00:00Z ERROR failure\nTraceback\n', 'utf8');
     const appendEvent = await appended;
     if (appendEvent.type !== 'append') {
-      throw new Error('Oczekiwano zdarzenia append.');
+      throw new Error('Append event expected.');
     }
     expect(appendEvent.data.records).toEqual([
       expect.objectContaining({
@@ -241,7 +241,7 @@ multiline:
     await appendFile(logPath, '42\n', 'utf8');
     const appendEvent = await appended;
     if (appendEvent.type !== 'append') {
-      throw new Error('Oczekiwano zdarzenia append.');
+      throw new Error('Append event expected.');
     }
     expect(appendEvent.data.records.at(-1)).toMatchObject({
       parseStatus: 'matched',

@@ -40,7 +40,7 @@ const records: LogRecord[] = [
   },
 ];
 
-describe('model widoku', () => {
+describe('view model', () => {
   it('merges records without duplicates and respects the limit', () => {
     expect(mergeRecords(records, [{ ...records[1], raw: 'ERROR zmieniono' }], 1))
       .toEqual([{ ...records[1], raw: 'ERROR zmieniono' }]);

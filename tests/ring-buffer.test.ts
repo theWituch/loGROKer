@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { RingBuffer } from '../src/server/ring-buffer';
 
 describe('RingBuffer', () => {
-  it('usuwa najstarsze elementy po przekroczeniu limitu', () => {
+  it('deletes oldest items when limit is reached', () => {
     const buffer = new RingBuffer<number>(3);
     expect(buffer.push(1, 2)).toEqual([]);
     expect(buffer.push(3, 4)).toEqual([1]);

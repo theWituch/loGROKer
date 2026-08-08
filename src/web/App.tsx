@@ -391,7 +391,7 @@ export default function App() {
 
         {levels.length > 0 && (
           <details className="column-picker level-picker">
-            <summary>Poziomy <span>{selectedLevels.size}/{levels.length}</span></summary>
+            <summary>Levels <span>{selectedLevels.size}/{levels.length}</span></summary>
             <div className="column-menu">
               <div className="column-menu-actions">
                 <button onClick={() => setAllLevelsVisible(true)}>Show all</button>
@@ -408,7 +408,7 @@ export default function App() {
                     }))}
                   />
                   <span className={`level-badge ${commonLevelClass(level)}`}>
-                    {level === NO_LEVEL ? 'Bez poziomu' : level}
+                    {level === NO_LEVEL ? 'No level parsed' : level}
                   </span>
                 </label>
               ))}
@@ -492,20 +492,20 @@ export default function App() {
             checked={pinLatest}
             onChange={(event) => setPinLatest(event.target.checked)}
           />
-          <span>Blokuj najnowszy</span>
+          <span>Lock newest</span>
         </label>
 
         <button className={`button ${pausedAt !== null ? 'button-active' : ''}`} onClick={togglePause}>
           {pausedAt === null ? 'Ⅱ Pause' : `▶ Resume${newWhilePaused ? ` (${newWhilePaused})` : ''}`}
         </button>
-        <button className="button button-quiet" onClick={clearView}>Clear widok</button>
+        <button className="button button-quiet" onClick={clearView}>Clear view</button>
       </section>
 
       <section className="table-region">
         <div className="table-summary">
-          <span><strong>{visibleRecords.length.toLocaleString('pl-PL')}</strong> widocznych</span>
+          <span><strong>{visibleRecords.length.toLocaleString('pl-PL')}</strong> visible</span>
           <span>{status?.buffered.toLocaleString('pl-PL') ?? 0} in buffer</span>
-          <span>{status?.physicalLines.toLocaleString('pl-PL') ?? 0} lines fizycznych</span>
+          <span>{status?.physicalLines.toLocaleString('pl-PL') ?? 0} file lines</span>
           {Boolean(status?.pendingMultilineLines) && (
             <span className="summary-pending">
               {status?.pendingMultilineLines} pending
@@ -686,7 +686,7 @@ export default function App() {
           >
             <header>
               <div>
-                <span className="drawer-kicker">{selectedRecord.sourceName} · rekord #{selectedRecord.sequence}</span>
+                <span className="drawer-kicker">{selectedRecord.sourceName} · record #{selectedRecord.sequence}</span>
                 <h2>{selectedRecord.lineCount} {selectedRecord.lineCount === 1 ? 'line' : 'lines'}</h2>
               </div>
               <button className="drawer-close" onClick={() => setSelectedRecord(null)} aria-label="Close">
@@ -702,7 +702,7 @@ export default function App() {
             </div>
 
             <section className="drawer-fields">
-              <h3>Pola sparsowane</h3>
+              <h3>Parsed fields</h3>
               <dl>
                 {Object.entries(selectedRecord.fields).map(([key, value]) => (
                   <div key={key}>

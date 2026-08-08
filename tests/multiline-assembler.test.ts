@@ -56,7 +56,7 @@ describe('MultilineAssembler', () => {
       negate: false,
       what: 'next',
     });
-    const output = assembler.push(0, ['pierwsza \\', 'druga \\', 'koniec', 'osobna'], [
+    const output = assembler.push(0, ['first \\', 'second \\', 'end', 'separate'], [
       true,
       true,
       false,
@@ -64,12 +64,12 @@ describe('MultilineAssembler', () => {
     ]);
 
     expect(output.map((event) => event.raw)).toEqual([
-      'pierwsza \\\ndruga \\\nkoniec',
-      'osobna',
+      'first \\\nsecond \\\nend',
+      'separate',
     ]);
   });
 
-  it('dzieli zdarzenie po limicie lines bez utraty danych', () => {
+  it('splits the event by the lines limit without losing data', () => {
     const assembler = new MultilineAssembler({
       ...previousConfig,
       maxLines: 2,
