@@ -25,7 +25,7 @@ multiline:
   what: previous
 `));
 
-    const lines = (await readFile(resolve('log.log'), 'utf8'))
+    const lines = (await readFile(resolve('tests/fixtures/log.log'), 'utf8'))
       .split(/\r?\n/)
       .filter(Boolean);
     const results = await service.parse(lines);

@@ -54,7 +54,7 @@ describe('ViewerService', () => {
     directories.push(directory);
     const logPath = join(directory, 'log.log');
     const configPath = join(directory, 'config.yml');
-    const source = await readFile(resolve('log.log'), 'utf8');
+    const source = await readFile(resolve('tests/fixtures/log.log'), 'utf8');
     const physicalLines = source.split(/\r?\n/).filter(Boolean);
     const logicalRecords = physicalLines.filter((line) => /^\d{4}-\d{2}-\d{2}T/.test(line));
     await writeFile(logPath, source, 'utf8');
