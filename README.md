@@ -121,6 +121,28 @@ pokazuje komunikat, a ostatni poprawny parser nadal works.
 - search, level filtering, pause, autoscroll, and clearing the view work
   in the browser.
 
+### Search syntax
+
+The search field supports the Liqe LQL syntax. Adjacent terms are
+joined with `AND`, and phrases containing spaces can be quoted:
+
+```text
+database connection
+"Database connection failed"
+level:ERROR AND NOT message:timeout
+_source:test.app AND (level:WARNING OR level:ERROR)
+message:connection*
+_sequence:>100
+```
+
+The `AND`, `OR`, and `NOT` operators must be uppercase. Unquoted
+values are matched case-insensitively, while quoted values
+are case-sensitive. All fields returned by GROK are available, along with
+pola systemowe: `raw`, `_source`, `_status`, `_sequence`, `_lines` i `_multiline`.
+The `_sequence` and `_lines` fields are numbers and support comparisons such as `:>`, `:>=`
+and `:=`. The `*` and `?` wildcards are available, while regular expressions are
+disabled in this version.
+
 ## Verification
 
 ```powershell

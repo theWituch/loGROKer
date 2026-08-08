@@ -1,4 +1,8 @@
 import type { LogRecord } from '../shared/contracts';
+import {
+  type CompiledLogQuery,
+  matchesLogQuery,
+} from './search-query';
 
 export const NO_LEVEL = '__no_level__';
 
@@ -19,13 +23,12 @@ export function mergeRecords(
 export function filterRecords(
   records: LogRecord[],
   options: {
-    query: string;
+    query: CompiledLogQuery;
     levels: ReadonlySet<string>;
     maximumSequence: number | null;
     clearedBefore: number;
   },
 ): LogRecord[] {
-  const needle = options.query.trim().toLocaleLowerCase('pl');
   return records.filter((record) => {
     if (record.sequence <= options.clearedBefore) {
       return false;
@@ -36,11 +39,7 @@ export function filterRecords(
     if (!options.levels.has(levelFilterKey(record.fields.level))) {
       return false;
     }
-    if (!needle) {
-      return true;
-    }
-    return [record.raw, ...Object.values(record.fields)]
-      .some((value) => value.toLocaleLowerCase('pl').includes(needle));
+    return matchesLogQuery(options.query, record);
   });
 }
 

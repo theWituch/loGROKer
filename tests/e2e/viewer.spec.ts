@@ -30,6 +30,19 @@ test('shows paths, status, and parsed columns', async ({ page }) => {
   await expect(page.locator('details.level-picker').getByRole('checkbox', { name: 'INFO' })).toBeChecked();
   await page.locator('details.level-picker summary').click();
 
+  const search = page.getByRole('textbox', { name: 'Szukaj w logach' });
+  await search.fill('level:ERROR AND NOT message:timeout');
+  await expect(page.locator('.log-table tbody tr')).toHaveCount(1);
+  await expect(page.locator('.log-table tbody tr')).toContainText('Could not send notification');
+  await search.fill('message:/Telegram/i');
+  await expect(page.getByRole('alert')).toContainText('Regular expressions');
+  await expect(page.locator('.log-table tbody tr')).toHaveCount(0);
+  await expect(page.getByText('Fix the search query.')).toBeVisible();
+  await search.fill('message:Telegram*');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.locator('.log-table tbody tr')).toHaveCount(1);
+  await search.fill('');
+
   await expect(page.getByRole('columnheader', { name: 'lines' })).toHaveCount(0);
   await expect(page.getByRole('columnheader', { name: 'timestamp' })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'message' })).toBeVisible();

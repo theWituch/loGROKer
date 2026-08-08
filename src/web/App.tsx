@@ -28,6 +28,7 @@ import {
   levelFilterKey,
   mergeRecords,
 } from './model';
+import { compileLogQuery } from './search-query';
 import './styles.css';
 
 const VISIBILITY_KEY = 'logroker.columnVisibility.v1';
@@ -177,14 +178,17 @@ export default function App() {
     [levelVisibility, levels],
   );
 
+  const compiledQuery = useMemo(() => compileLogQuery(query), [query]);
+  const queryError = compiledQuery.status === 'invalid' ? compiledQuery.error : null;
+
   const visibleRecords = useMemo(
     () => filterRecords(sourceRecords, {
-      query,
+      query: compiledQuery,
       levels: selectedLevels,
       maximumSequence: pausedAt,
       clearedBefore,
     }),
-    [sourceRecords, query, selectedLevels, pausedAt, clearedBefore],
+    [sourceRecords, compiledQuery, selectedLevels, pausedAt, clearedBefore],
   );
 
   useEffect(() => {
@@ -351,20 +355,39 @@ export default function App() {
       )}
 
       <section className="toolbar" aria-label="Viewer controls">
-        <label className="search-field">
-          <span className="sr-only">Szukaj w logach</span>
-          <span aria-hidden="true">⌕</span>
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Szukaj we wszystkich polach…"
-          />
-          {query && (
-            <button className="icon-button" onClick={() => setQuery('')} title="Clear">
-              ×
-            </button>
+        <div className="search-control">
+          <label className={`search-field ${queryError ? 'search-field-invalid' : ''}`}>
+            <span className="sr-only">Szukaj w logach</span>
+            <span aria-hidden="true">⌕</span>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="np. level:ERROR AND NOT message:timeout"
+              aria-invalid={Boolean(queryError)}
+              aria-describedby={queryError ? 'search-query-error' : 'search-query-help'}
+            />
+            {query && (
+              <button className="icon-button" onClick={() => setQuery('')} title="Clear">
+                ×
+              </button>
+            )}
+          </label>
+          <details className="column-picker search-help">
+            <summary aria-label="Search syntax help">Syntax</summary>
+            <div className="search-help-panel" id="search-query-help">
+              <strong>LQL queries</strong>
+              <code>level:ERROR AND NOT message:timeout</code>
+              <code>_source:test.app AND (level:WARNING OR level:ERROR)</code>
+              <code>message:connection*</code>
+              <span>Use uppercase operators. Available system fields: raw, _source, _status, _sequence, _lines, _multiline. Regular expressions are disabled.</span>
+            </div>
+          </details>
+          {queryError && (
+            <span className="search-error" id="search-query-error" role="alert">
+              {queryError.message}
+            </span>
           )}
-        </label>
+        </div>
 
         {levels.length > 0 && (
           <details className="column-picker level-picker">
@@ -509,7 +532,11 @@ export default function App() {
             <div className="empty-state">Select at least one column.</div>
           ) : rows.length === 0 ? (
             <div className="empty-state">
-              {pausedAt !== null ? 'The viewer is paused.' : 'No records match the filters.'}
+              {queryError
+                ? 'Fix the search query.'
+                : pausedAt !== null
+                  ? 'The viewer is paused.'
+                  : 'No records match the filters.'}
             </div>
           ) : (
             <table className="log-table">

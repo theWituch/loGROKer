@@ -7,6 +7,7 @@ import {
   levelFilterKey,
   mergeRecords,
 } from '../src/web/model';
+import { compileLogQuery } from '../src/web/search-query';
 
 const records: LogRecord[] = [
   {
@@ -47,7 +48,7 @@ describe('model widoku', () => {
 
   it('filters by level, text, and pause sequence', () => {
     expect(filterRecords(records, {
-      query: 'failure',
+      query: compileLogQuery('failure'),
       levels: new Set(['ERROR']),
       maximumSequence: 2,
       clearedBefore: 0,
@@ -70,7 +71,7 @@ describe('model widoku', () => {
       fields: { message: 'without level' },
     };
     expect(filterRecords([...records, warning, withoutLevel], {
-      query: '',
+      query: compileLogQuery(''),
       levels: new Set(['WARNING', NO_LEVEL]),
       maximumSequence: null,
       clearedBefore: 0,
