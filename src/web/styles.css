@@ -1137,7 +1137,7 @@ button {
   flex: 1;
   overflow: auto;
   margin: 0;
-  padding: 14px;
+  padding: 15px;
   color: #cbd8e3;
   background: #071018;
   border: 1px solid var(--border);
@@ -1146,7 +1146,9 @@ button {
   font-size: 11px;
   line-height: 1.55;
   tab-size: 4;
-  white-space: pre;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  text-indent: -1ch hanging each-line;
 }
 
 .empty-state {

@@ -956,7 +956,7 @@ export default function App() {
 
             <section className="drawer-raw">
               <div>
-                <h3>Full log</h3>
+                <h3>Raw log</h3>
                 <button className="button" onClick={() => void copyRecord()}>
                   {copied ? 'Copied' : 'Copy'}
                 </button>

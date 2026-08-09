@@ -120,7 +120,10 @@ test('shows paths, status, and parsed columns', async ({ page }) => {
   await multilineBadge.click();
   const details = page.getByRole('dialog', { name: 'Log record details' });
   await expect(details).toBeVisible();
+  await expect(details.getByRole('heading', { name: 'Raw log' })).toBeVisible();
   await expect(details.locator('pre')).toContainText('RuntimeError: Telegram down');
+  await expect(details.locator('pre')).toHaveCSS('white-space', 'pre-wrap');
+  await expect(details.locator('pre')).toHaveCSS('overflow-wrap', 'anywhere');
   await expect(details.getByRole('button', { name: 'Copy' })).toBeVisible();
   await details.getByRole('button', { name: 'Close' }).click();
   await expect(details).toBeHidden();
