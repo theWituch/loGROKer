@@ -469,6 +469,83 @@ button {
   font-size: 10px;
 }
 
+.column-menu-actions button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.column-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border-radius: 4px;
+}
+
+.column-order-picker .column-option-label {
+  min-width: 0;
+  flex: 1;
+}
+
+.column-order-picker .column-option-label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.column-drag-handle {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: grab;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.column-drag-handle:hover,
+.column-drag-handle:focus-visible {
+  color: var(--accent);
+  background: #0b1620;
+  border-color: var(--border-bright);
+  outline: none;
+}
+
+.column-drag-handle:active {
+  cursor: grabbing;
+}
+
+.column-option-dragging {
+  opacity: 0.48;
+}
+
+.column-option-drop-before::before,
+.column-option-drop-after::after {
+  position: absolute;
+  z-index: 1;
+  right: 4px;
+  left: 4px;
+  height: 2px;
+  content: '';
+  background: var(--accent);
+  border-radius: 999px;
+  box-shadow: 0 0 8px rgba(67, 215, 180, 0.55);
+}
+
+.column-option-drop-before::before {
+  top: -1px;
+}
+
+.column-option-drop-after::after {
+  bottom: -1px;
+}
+
 .toggle-control {
   display: flex;
   align-items: center;

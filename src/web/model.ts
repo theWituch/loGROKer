@@ -6,6 +6,47 @@ import {
 
 export const NO_LEVEL = '__no_level__';
 
+export type ColumnDropPosition = 'before' | 'after';
+
+export function sanitizeColumnOrder(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  const seen = new Set<string>();
+  return value.filter((item): item is string => {
+    if (typeof item !== 'string' || item.length === 0 || seen.has(item)) {
+      return false;
+    }
+    seen.add(item);
+    return true;
+  });
+}
+
+export function completeColumnOrder(
+  preferred: readonly string[],
+  available: readonly string[],
+): string[] {
+  return sanitizeColumnOrder([...preferred, ...available]);
+}
+
+export function reorderColumn(
+  order: readonly string[],
+  draggedId: string,
+  targetId: string,
+  position: ColumnDropPosition,
+): string[] {
+  const normalized = sanitizeColumnOrder(order);
+  if (draggedId === targetId || !normalized.includes(draggedId)) {
+    return normalized;
+  }
+
+  const withoutDragged = normalized.filter((id) => id !== draggedId);
+  const targetIndex = withoutDragged.indexOf(targetId);
+  if (targetIndex < 0) return normalized;
+
+  withoutDragged.splice(targetIndex + (position === 'after' ? 1 : 0), 0, draggedId);
+  return withoutDragged;
+}
+
 export function mergeRecords(
   current: LogRecord[],
   incoming: LogRecord[],

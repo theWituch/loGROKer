@@ -1,5 +1,5 @@
 match: >-
-  ^%{TIMESTAMP_ISO8601:timestamp}\s+%{LOGLEVEL:level}\s+\[%{DATA:logger}\]\s+\[pid=%{NUMBER:pid:int}\s+thread_id=%{NUMBER:thread_id:int}\s+thread_name="%{DATA:thread_name}"\]\s+client=%{QUOTEDSTRING:client}\s+method=%{QUOTEDSTRING:method}\s+target=%{QUOTEDSTRING:message}\s+protocol=%{QUOTEDSTRING:protocol}\s+status=(?:%{NUMBER:status:int}|-)\s+bytes=(?:%{NUMBER:bytes:int}|-)$
+  ^%{TIMESTAMP_ISO8601:timestamp}\s+%{LOGLEVEL:level}\s+\[%{DATA:logger}\]\s+\[pid=%{NUMBER:pid:int}\s+thread_id=%{NUMBER:thread_id:int}\s+thread_name="%{DATA:thread_name}"\]\s+request_id="%{DATA:request_id}"\s+client=%{QUOTEDSTRING:client}\s+method="%{DATA:method}"\s+target="%{DATA:message}"\s+protocol=%{QUOTEDSTRING:protocol}\s+status=(?:%{NUMBER:status:int}|-)\s+bytes=(?:%{NUMBER:bytes:int}|-)$
 
 patterns:
   MULTILINE_DATA: '[\s\S]*'

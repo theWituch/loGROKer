@@ -3,9 +3,12 @@ import type { LogRecord } from '../src/shared/contracts';
 import {
   NO_LEVEL,
   commonLevelClass,
+  completeColumnOrder,
   filterRecords,
   levelFilterKey,
   mergeRecords,
+  reorderColumn,
+  sanitizeColumnOrder,
 } from '../src/web/model';
 import { compileLogQuery } from '../src/web/search-query';
 
@@ -41,6 +44,31 @@ const records: LogRecord[] = [
 ];
 
 describe('view model', () => {
+  it('sanitizes and completes persisted column order', () => {
+    expect(sanitizeColumnOrder(['message', 'timestamp', 'message', 42, '']))
+      .toEqual(['message', 'timestamp']);
+    expect(sanitizeColumnOrder({ message: true })).toEqual([]);
+    expect(completeColumnOrder(
+      ['message', 'temporarily-missing'],
+      ['timestamp', 'level', 'message', 'raw'],
+    )).toEqual([
+      'message',
+      'temporarily-missing',
+      'timestamp',
+      'level',
+      'raw',
+    ]);
+  });
+
+  it('reorders columns before and after a target', () => {
+    const order = ['timestamp', 'level', 'message', 'raw'];
+    expect(reorderColumn(order, 'message', 'timestamp', 'before'))
+      .toEqual(['message', 'timestamp', 'level', 'raw']);
+    expect(reorderColumn(order, 'timestamp', 'message', 'after'))
+      .toEqual(['level', 'message', 'timestamp', 'raw']);
+    expect(reorderColumn(order, 'missing', 'message', 'before')).toEqual(order);
+  });
+
   it('merges records without duplicates and respects the limit', () => {
     expect(mergeRecords(records, [{ ...records[1], raw: 'ERROR zmieniono' }], 1))
       .toEqual([{ ...records[1], raw: 'ERROR zmieniono' }]);

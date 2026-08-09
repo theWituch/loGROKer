@@ -116,7 +116,8 @@ shows a message, and the last correct parser is still working.
   range from the last selected record;
 - `Ctrl+click` adds or removes one record without changing other
   selections;
-- column visibility is stored locally in the browser;
+- column visibility and custom order are stored locally in the browser; columns
+  can be reordered in the “Columns” menu and restored with “Reset order”;
 - search, level filtering, pause, autoscroll, and clearing the view work
   in the browser.
 

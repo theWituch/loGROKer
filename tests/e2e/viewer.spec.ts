@@ -127,3 +127,54 @@ test('shows paths, status, and parsed columns', async ({ page }) => {
 
   await page.screenshot({ path: 'test-results/viewer.png', fullPage: true });
 });
+
+test('reorders columns from the picker and persists or resets the order', async ({ page }) => {
+  await page.setViewportSize({ width: 2200, height: 900 });
+  await page.goto('/');
+  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+
+  const headerNames = () => page.getByRole('columnheader').allTextContents()
+    .then((values) => values.map((value) => value.trim()));
+  const initialHeaders = await headerNames();
+  expect(initialHeaders[0]).toBe('timestamp');
+
+  const picker = page.locator('details.column-order-picker');
+  await picker.locator('summary').click();
+  const messageOption = picker.locator('[data-column-id="message"]');
+  const timestampOption = picker.locator('[data-column-id="timestamp"]');
+  await messageOption.getByRole('checkbox').uncheck();
+  await messageOption.getByRole('button', { name: 'Move column message' }).dragTo(
+    timestampOption,
+    { targetPosition: { x: 12, y: 2 } },
+  );
+  await messageOption.getByRole('checkbox').check();
+  await expect.poll(headerNames).toEqual([
+    'message',
+    ...initialHeaders.filter((header) => header !== 'message'),
+  ]);
+
+  await page.reload();
+  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  await expect.poll(headerNames).toEqual([
+    'message',
+    ...initialHeaders.filter((header) => header !== 'message'),
+  ]);
+
+  await picker.locator('summary').click();
+  await picker.getByRole('button', { name: 'Reset order' }).click();
+  await expect.poll(headerNames).toEqual(initialHeaders);
+  await expect.poll(() => page.evaluate(() => (
+    localStorage.getItem('logroker.columnOrder.v1')
+  ))).toBeNull();
+
+  await picker.locator('[data-column-id="level"]')
+    .getByRole('button', { name: 'Move column level' })
+    .press('ArrowUp');
+  await expect.poll(headerNames).toEqual([
+    'level',
+    'timestamp',
+    ...initialHeaders.slice(2),
+  ]);
+  await picker.getByRole('button', { name: 'Reset order' }).click();
+  await expect.poll(headerNames).toEqual(initialHeaders);
+});

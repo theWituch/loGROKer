@@ -1,5 +1,6 @@
 import {
   type ColumnDef,
+  type ColumnOrderState,
   type VisibilityState,
   flexRender,
   getCoreRowModel,
@@ -11,6 +12,8 @@ import {
 } from '@tanstack/react-virtual';
 import {
   type CSSProperties,
+  type DragEvent as ReactDragEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   useEffect,
   useMemo,
   useRef,
@@ -23,15 +26,20 @@ import type {
 } from '../shared/contracts';
 import {
   NO_LEVEL,
+  type ColumnDropPosition,
   commonLevelClass,
+  completeColumnOrder,
   filterRecords,
   levelFilterKey,
   mergeRecords,
+  reorderColumn,
+  sanitizeColumnOrder,
 } from './model';
 import { compileLogQuery } from './search-query';
 import './styles.css';
 
 const VISIBILITY_KEY = 'logroker.columnVisibility.v1';
+const ORDER_KEY = 'logroker.columnOrder.v1';
 const SOURCES_KEY = 'logroker.sourceVisibility.v1';
 const LEVELS_KEY = 'logroker.levelVisibility.v1';
 const FALLBACK_LIMIT = 10_000;
@@ -60,6 +68,13 @@ export default function App() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
     readVisibility,
   );
+  const [columnOrder, setColumnOrder] = useState<ColumnOrderState>(readColumnOrder);
+  const [draggedColumnId, setDraggedColumnId] = useState<string | null>(null);
+  const [columnDropTarget, setColumnDropTarget] = useState<{
+    id: string;
+    position: ColumnDropPosition;
+  } | null>(null);
+  const [columnOrderAnnouncement, setColumnOrderAnnouncement] = useState('');
   const maxRecordsRef = useRef(FALLBACK_LIMIT);
 
   useEffect(() => {
@@ -107,6 +122,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(VISIBILITY_KEY, JSON.stringify(columnVisibility));
   }, [columnVisibility]);
+
+  useEffect(() => {
+    if (columnOrder.length === 0) {
+      localStorage.removeItem(ORDER_KEY);
+    } else {
+      localStorage.setItem(ORDER_KEY, JSON.stringify(columnOrder));
+    }
+  }, [columnOrder]);
 
   useEffect(() => {
     if (!status) return;
@@ -220,12 +243,14 @@ export default function App() {
       maxSize: 1200,
     },
   ], [fields]);
+  const availableColumnIds = useMemo(() => [...fields, 'raw'], [fields]);
 
   const table = useReactTable({
     data: visibleRecords,
     columns,
-    state: { columnVisibility },
+    state: { columnVisibility, columnOrder },
     onColumnVisibilityChange: setColumnVisibility,
+    onColumnOrderChange: setColumnOrder,
     getCoreRowModel: getCoreRowModel(),
     columnResizeMode: 'onChange',
     getRowId: (row) => row.id,
@@ -306,6 +331,87 @@ export default function App() {
     setColumnVisibility(Object.fromEntries(
       [...fields, 'raw'].map((field) => [field, true]),
     ));
+  };
+  const commitColumnMove = (
+    draggedId: string,
+    targetId: string,
+    position: ColumnDropPosition,
+  ) => {
+    const currentOrder = completeColumnOrder(columnOrder, availableColumnIds);
+    const nextOrder = reorderColumn(currentOrder, draggedId, targetId, position);
+    if (nextOrder.indexOf(draggedId) === currentOrder.indexOf(draggedId)) return;
+
+    const availableIds = new Set(availableColumnIds);
+    const nextPosition = nextOrder
+      .filter((columnId) => availableIds.has(columnId))
+      .indexOf(draggedId);
+
+    setColumnOrder(nextOrder);
+    setColumnOrderAnnouncement(
+      `Column ${draggedId} moved to position ${nextPosition + 1}.`,
+    );
+  };
+  const handleColumnDragStart = (
+    event: ReactDragEvent<HTMLButtonElement>,
+    columnId: string,
+  ) => {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', columnId);
+    setDraggedColumnId(columnId);
+    setColumnDropTarget(null);
+  };
+  const handleColumnDragOver = (
+    event: ReactDragEvent<HTMLDivElement>,
+    columnId: string,
+  ) => {
+    if (!draggedColumnId || draggedColumnId === columnId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const position = event.clientY < bounds.top + bounds.height / 2 ? 'before' : 'after';
+    setColumnDropTarget((current) => (
+      current?.id === columnId && current.position === position
+        ? current
+        : { id: columnId, position }
+    ));
+  };
+  const handleColumnDrop = (
+    event: ReactDragEvent<HTMLDivElement>,
+    targetId: string,
+  ) => {
+    event.preventDefault();
+    const sourceId = draggedColumnId || event.dataTransfer.getData('text/plain');
+    if (sourceId && sourceId !== targetId) {
+      commitColumnMove(
+        sourceId,
+        targetId,
+        columnDropTarget?.id === targetId ? columnDropTarget.position : 'before',
+      );
+    }
+    setDraggedColumnId(null);
+    setColumnDropTarget(null);
+  };
+  const handleColumnOrderKeyDown = (
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+    columnId: string,
+  ) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    const currentOrder = table.getAllLeafColumns().map((column) => column.id);
+    const currentIndex = currentOrder.indexOf(columnId);
+    const targetIndex = currentIndex + (event.key === 'ArrowUp' ? -1 : 1);
+    const targetId = currentOrder[targetIndex];
+    if (!targetId) {
+      setColumnOrderAnnouncement(
+        `Column ${columnId} is already at the ${event.key === 'ArrowUp' ? 'start' : 'end'}.`,
+      );
+      return;
+    }
+    commitColumnMove(
+      columnId,
+      targetId,
+      event.key === 'ArrowUp' ? 'before' : 'after',
+    );
   };
   const setAllLevelsVisible = (visible: boolean) => {
     setLevelVisibility((current) => ({
@@ -453,7 +559,7 @@ export default function App() {
           </details>
         )}
 
-        <details className="column-picker">
+        <details className="column-picker column-order-picker">
           <summary>Columns <span>{table.getVisibleLeafColumns().length}/{columns.length}</span></summary>
           <div className="column-menu">
             <div className="column-menu-actions">
@@ -461,17 +567,51 @@ export default function App() {
               <button onClick={() => setColumnVisibility(
                 Object.fromEntries([...fields, 'raw'].map((field) => [field, false])),
               )}>Hide all</button>
+              <button
+                onClick={() => setColumnOrder([])}
+                disabled={columnOrder.length === 0}
+              >Reset order</button>
             </div>
             {table.getAllLeafColumns().map((column) => (
-              <label key={column.id}>
-                <input
-                  type="checkbox"
-                  checked={column.getIsVisible()}
-                  onChange={column.getToggleVisibilityHandler()}
-                />
-                <span>{column.id}</span>
-              </label>
+              <div
+                key={column.id}
+                className={[
+                  'column-option',
+                  draggedColumnId === column.id ? 'column-option-dragging' : '',
+                  columnDropTarget?.id === column.id
+                    ? `column-option-drop-${columnDropTarget.position}`
+                    : '',
+                ].filter(Boolean).join(' ')}
+                data-column-id={column.id}
+                onDragOver={(event) => handleColumnDragOver(event, column.id)}
+                onDrop={(event) => handleColumnDrop(event, column.id)}
+              >
+                <label className="column-option-label">
+                  <input
+                    type="checkbox"
+                    checked={column.getIsVisible()}
+                    onChange={column.getToggleVisibilityHandler()}
+                  />
+                  <span>{column.id}</span>
+                </label>
+                <button
+                  type="button"
+                  className="column-drag-handle"
+                  draggable
+                  aria-label={`Move column ${column.id}`}
+                  title="Drag to reorder; use Arrow Up or Arrow Down with the keyboard"
+                  onDragStart={(event) => handleColumnDragStart(event, column.id)}
+                  onDragEnd={() => {
+                    setDraggedColumnId(null);
+                    setColumnDropTarget(null);
+                  }}
+                  onKeyDown={(event) => handleColumnOrderKeyDown(event, column.id)}
+                >
+                  <span aria-hidden="true">⠿</span>
+                </button>
+              </div>
             ))}
+            <span className="sr-only" aria-live="polite">{columnOrderAnnouncement}</span>
           </div>
         </details>
 
@@ -779,6 +919,15 @@ function readVisibility(): VisibilityState {
     return stored ? JSON.parse(stored) as VisibilityState : {};
   } catch {
     return {};
+  }
+}
+
+function readColumnOrder(): ColumnOrderState {
+  try {
+    const stored = localStorage.getItem(ORDER_KEY);
+    return stored ? sanitizeColumnOrder(JSON.parse(stored) as unknown) : [];
+  } catch {
+    return [];
   }
 }
 
