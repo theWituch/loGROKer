@@ -118,8 +118,11 @@ shows a message, and the last correct parser is still working.
   selections;
 - column visibility and custom order are stored locally in the browser; columns
   can be reordered in the “Columns” menu and restored with “Reset order”;
-- search, level filtering, pause, autoscroll, and clearing the view work
-  in the browser.
+- the active search is stored locally and in the `q` URL parameter, so it survives
+  reloads, can be shared, and follows browser back/forward history;
+- hovering or focusing a single-line cell reveals `+` and `−` actions that require
+  or exclude its field value from the search;
+- level filtering, pause, autoscroll, and clearing the view work in the browser.
 
 ### Search syntax
 
@@ -142,6 +145,10 @@ system fields: `raw`, `_source`, `_status`, `_sequence`, `_lines`, and `_multili
 The `_sequence` and `_lines` fields are numbers and support comparisons such as `:>`, `:>=`
 and `:=`. The `*` and `?` wildcards are available, while regular expressions are
 disabled in this version.
+
+Cell actions add quoted conditions at the end of the current query. The `+` action
+uses `AND`, while `−` uses `AND NOT`. Existing top-level `OR` expressions are
+grouped automatically to preserve their meaning.
 
 ## Verification
 

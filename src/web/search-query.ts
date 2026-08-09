@@ -20,6 +20,8 @@ export type CompiledLogQuery =
   | { status: 'valid'; ast: LiqeQuery }
   | { status: 'invalid'; error: LogQueryError };
 
+export type CellFilterMode = 'include' | 'exclude';
+
 export function compileLogQuery(query: string): CompiledLogQuery {
   if (!query.trim()) {
     return { status: 'empty' };
@@ -76,6 +78,32 @@ export function matchesLogQuery(query: CompiledLogQuery, record: LogRecord): boo
   return test(query.ast, toSearchDocument(record));
 }
 
+export function appendCellFilter(
+  query: string,
+  field: string,
+  value: string,
+  mode: CellFilterMode,
+): string | null {
+  if (!field || !isFilterableCellValue(value)) return null;
+
+  const compiled = compileLogQuery(query);
+  if (compiled.status === 'invalid') return null;
+
+  const tag = `${quoteLqlLiteral(field)}:${quoteLqlLiteral(value)}`;
+  const condition = mode === 'exclude' ? `NOT ${tag}` : tag;
+  if (compiled.status === 'empty') return condition;
+
+  const current = query.trim();
+  const requiresGrouping = compiled.ast.type === 'LogicalExpression'
+    && compiled.ast.operator.type === 'BooleanOperator'
+    && compiled.ast.operator.operator === 'OR';
+  return `${requiresGrouping ? `(${current})` : current} AND ${condition}`;
+}
+
+export function isFilterableCellValue(value: string): boolean {
+  return value.length > 0 && !/[\r\n]/u.test(value);
+}
+
 export function toSearchDocument(record: LogRecord): Record<string, string | number | boolean> {
   return {
     ...record.fields,
@@ -102,4 +130,8 @@ function findRegexExpression(ast: ParserAst): RegexExpressionToken | null {
     return findRegexExpression(ast.operand);
   }
   return null;
+}
+
+function quoteLqlLiteral(value: string): string {
+  return `"${value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
 }

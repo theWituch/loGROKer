@@ -35,13 +35,20 @@ import {
   reorderColumn,
   sanitizeColumnOrder,
 } from './model';
-import { compileLogQuery } from './search-query';
+import {
+  type CellFilterMode,
+  appendCellFilter,
+  compileLogQuery,
+  isFilterableCellValue,
+} from './search-query';
 import './styles.css';
 
 const VISIBILITY_KEY = 'logroker.columnVisibility.v1';
 const ORDER_KEY = 'logroker.columnOrder.v1';
 const SOURCES_KEY = 'logroker.sourceVisibility.v1';
 const LEVELS_KEY = 'logroker.levelVisibility.v1';
+const QUERY_KEY = 'logroker.searchQuery.v1';
+const QUERY_PARAM = 'q';
 const FALLBACK_LIMIT = 10_000;
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected';
@@ -53,7 +60,7 @@ export default function App() {
   const [selectedSourceIds, setSelectedSourceIds] = useState<Set<string>>(readSourceVisibility);
   const [sourceVisibilityReady, setSourceVisibilityReady] = useState(false);
   const [connection, setConnection] = useState<ConnectionState>('connecting');
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(readInitialQuery);
   const [levelVisibility, setLevelVisibility] = useState<Record<string, boolean>>(
     readLevelVisibility,
   );
@@ -75,6 +82,10 @@ export default function App() {
     position: ColumnDropPosition;
   } | null>(null);
   const [columnOrderAnnouncement, setColumnOrderAnnouncement] = useState('');
+  const queryEditSessionRef = useRef<{
+    historyState: unknown;
+    url: string;
+  } | null>(null);
   const maxRecordsRef = useRef(FALLBACK_LIMIT);
 
   useEffect(() => {
@@ -130,6 +141,32 @@ export default function App() {
       localStorage.setItem(ORDER_KEY, JSON.stringify(columnOrder));
     }
   }, [columnOrder]);
+
+  useEffect(() => {
+    try {
+      if (query) {
+        localStorage.setItem(QUERY_KEY, query);
+      } else {
+        localStorage.removeItem(QUERY_KEY);
+      }
+    } catch {
+      // The URL remains the source of truth when storage is unavailable.
+    }
+  }, [query]);
+
+  useEffect(() => {
+    const urlQuery = readQueryFromUrl();
+    if (urlQuery === null && query) {
+      writeQueryToUrl(query, 'replace');
+    }
+
+    const restoreQueryFromHistory = () => {
+      queryEditSessionRef.current = null;
+      setQuery(readQueryFromUrl() ?? '');
+    };
+    window.addEventListener('popstate', restoreQueryFromHistory);
+    return () => window.removeEventListener('popstate', restoreQueryFromHistory);
+  }, []);
 
   useEffect(() => {
     if (!status) return;
@@ -428,6 +465,42 @@ export default function App() {
     await navigator.clipboard.writeText(selectedRecord.raw);
     setCopied(true);
   };
+  const updateManualQuery = (nextQuery: string) => {
+    if (!queryEditSessionRef.current) {
+      queryEditSessionRef.current = {
+        historyState: window.history.state as unknown,
+        url: window.location.href,
+      };
+    }
+    setQuery(nextQuery);
+    writeQueryToUrl(nextQuery, 'replace');
+  };
+  const commitManualQuery = () => {
+    const session = queryEditSessionRef.current;
+    if (!session) return;
+
+    const finalUrl = window.location.href;
+    const finalState = window.history.state as unknown;
+    queryEditSessionRef.current = null;
+    if (finalUrl === session.url) return;
+
+    window.history.replaceState(session.historyState, '', session.url);
+    window.history.pushState(finalState, '', finalUrl);
+  };
+  const applyCommittedQuery = (nextQuery: string) => {
+    commitManualQuery();
+    queryEditSessionRef.current = null;
+    setQuery(nextQuery);
+    writeQueryToUrl(nextQuery, 'push');
+  };
+  const applyCellFilter = (
+    field: string,
+    value: string,
+    mode: CellFilterMode,
+  ) => {
+    const nextQuery = appendCellFilter(query, field, value, mode);
+    if (nextQuery !== null) applyCommittedQuery(nextQuery);
+  };
 
   return (
     <main className="app-shell">
@@ -467,13 +540,17 @@ export default function App() {
             <span aria-hidden="true">⌕</span>
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => updateManualQuery(event.target.value)}
+              onBlur={commitManualQuery}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') commitManualQuery();
+              }}
               placeholder="np. level:ERROR AND NOT message:timeout"
               aria-invalid={Boolean(queryError)}
               aria-describedby={queryError ? 'search-query-error' : 'search-query-help'}
             />
             {query && (
-              <button className="icon-button" onClick={() => setQuery('')} title="Clear">
+              <button className="icon-button" onClick={() => applyCommittedQuery('')} title="Clear">
                 ×
               </button>
             )}
@@ -754,21 +831,29 @@ export default function App() {
                       onDoubleClick={() => openRecord(row.original)}
                     >
                       {row.original.parseStatus === 'unmatched' ? (
-                        <td className="unmatched-cell">
+                        <td className="unmatched-cell" data-field="raw">
                           <strong>NIEDOPASOWANY</strong>
                           <span title={row.original.raw}>{row.original.raw}</span>
-                          {row.original.multiline && (
-                            <button
-                              className="multiline-badge"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                openRecord(row.original);
-                              }}
-                              title="Show the full multiline record"
-                            >
-                              {row.original.lineCount} lines
-                            </button>
-                          )}
+                          <div className="cell-actions">
+                            {row.original.multiline && (
+                              <button
+                                className="multiline-badge"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openRecord(row.original);
+                                }}
+                                title="Show the full multiline record"
+                              >
+                                {row.original.lineCount} lines
+                              </button>
+                            )}
+                            <CellFilterActions
+                              field="raw"
+                              value={row.original.raw}
+                              enabled={!queryError}
+                              onApply={applyCellFilter}
+                            />
+                          </div>
                         </td>
                       ) : visibleCells.map((cell, index) => {
                         const value = String(cell.getValue() ?? '');
@@ -782,27 +867,43 @@ export default function App() {
                           <td
                             key={cell.id}
                             className={showsMultilineBadge ? 'cell-multiline' : undefined}
+                            data-field={cell.column.id}
                             style={{
                               width: size,
                               flex: isLastVisible ? `1 0 ${size}px` : `0 0 ${size}px`,
                             }}
                             title={value}
                           >
-                            {showsMultilineBadge ? (
-                              <>
-                                <span className="multiline-cell-value">{renderedValue}</span>
-                                <button
-                                  className="multiline-badge"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    openRecord(row.original);
-                                  }}
-                                  title="Show the full multiline record"
-                                >
-                                  {row.original.lineCount} lines
-                                </button>
-                              </>
-                            ) : renderedValue}
+                            <span className={showsMultilineBadge
+                              ? 'cell-value multiline-cell-value'
+                              : 'cell-value'}
+                            >
+                              {renderedValue}
+                            </span>
+                            {(showsMultilineBadge || (
+                              !queryError && isFilterableCellValue(value)
+                            )) && (
+                              <div className="cell-actions">
+                                {showsMultilineBadge && (
+                                  <button
+                                    className="multiline-badge"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      openRecord(row.original);
+                                    }}
+                                    title="Show the full multiline record"
+                                  >
+                                    {row.original.lineCount} lines
+                                  </button>
+                                )}
+                                <CellFilterActions
+                                  field={cell.column.id}
+                                  value={value}
+                                  enabled={!queryError}
+                                  onApply={applyCellFilter}
+                                />
+                              </div>
+                            )}
                           </td>
                         );
                       })}
@@ -869,6 +970,48 @@ export default function App() {
   );
 }
 
+function CellFilterActions({
+  field,
+  value,
+  enabled,
+  onApply,
+}: {
+  field: string;
+  value: string;
+  enabled: boolean;
+  onApply: (field: string, value: string, mode: CellFilterMode) => void;
+}) {
+  if (!enabled || !isFilterableCellValue(value)) return null;
+
+  const description = value.length > 80 ? `${value.slice(0, 77)}…` : value;
+  return (
+    <div className="cell-filter-actions">
+      <button
+        type="button"
+        className="cell-filter-button cell-filter-include"
+        aria-label={`Require ${field}: ${description}`}
+        title={`Require ${field}: ${description}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onApply(field, value, 'include');
+        }}
+        onDoubleClick={(event) => event.stopPropagation()}
+      >+</button>
+      <button
+        type="button"
+        className="cell-filter-button cell-filter-exclude"
+        aria-label={`Exclude ${field}: ${description}`}
+        title={`Exclude ${field}: ${description}`}
+        onClick={(event) => {
+          event.stopPropagation();
+          onApply(field, value, 'exclude');
+        }}
+        onDoubleClick={(event) => event.stopPropagation()}
+      >−</button>
+    </div>
+  );
+}
+
 function SourceSummary({
   sources,
   selectedSourceIds,
@@ -911,6 +1054,37 @@ function shortPath(value: string): string {
 
 function parseEvent<T>(event: Event): T {
   return JSON.parse((event as MessageEvent<string>).data) as T;
+}
+
+function readInitialQuery(): string {
+  const urlQuery = readQueryFromUrl();
+  if (urlQuery !== null) return urlQuery;
+  try {
+    return localStorage.getItem(QUERY_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+function readQueryFromUrl(): string | null {
+  const parameters = new URL(window.location.href).searchParams;
+  return parameters.has(QUERY_PARAM) ? parameters.get(QUERY_PARAM) ?? '' : null;
+}
+
+function writeQueryToUrl(query: string, mode: 'push' | 'replace'): void {
+  const url = new URL(window.location.href);
+  if (query) {
+    url.searchParams.set(QUERY_PARAM, query);
+  } else {
+    url.searchParams.delete(QUERY_PARAM);
+  }
+  if (url.href === window.location.href) return;
+
+  if (mode === 'push') {
+    window.history.pushState(window.history.state, '', url);
+  } else {
+    window.history.replaceState(window.history.state, '', url);
+  }
 }
 
 function readVisibility(): VisibilityState {

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { LogRecord } from '../src/shared/contracts';
 import {
+  appendCellFilter,
   compileLogQuery,
+  isFilterableCellValue,
   matchesLogQuery,
   toSearchDocument,
 } from '../src/web/search-query';
@@ -30,6 +32,43 @@ function matches(query: string, subject: LogRecord = record): boolean {
 }
 
 describe('log search DSL', () => {
+  it('appends include and exclude filters without changing OR precedence', () => {
+    expect(appendCellFilter('', 'level', 'ERROR', 'include'))
+      .toBe('"level":"ERROR"');
+    expect(appendCellFilter('level:ERROR', 'pid', '22720', 'exclude'))
+      .toBe('level:ERROR AND NOT "pid":"22720"');
+    expect(appendCellFilter(
+      'level:INFO OR level:ERROR',
+      'message',
+      'Database connection failed',
+      'include',
+    )).toBe(
+      '(level:INFO OR level:ERROR) AND "message":"Database connection failed"',
+    );
+  });
+
+  it('escapes generated field and value literals', () => {
+    const query = appendCellFilter(
+      '',
+      'field name',
+      'say "hello" from \\server',
+      'include',
+    );
+    expect(query).toBe('"field name":"say \\"hello\\" from \\\\server"');
+    expect(query && matchesLogQuery(compileLogQuery(query), {
+      ...record,
+      fields: { 'field name': 'say "hello" from \\server' },
+    })).toBe(true);
+  });
+
+  it('rejects quick filters for invalid queries and unsupported cell values', () => {
+    expect(appendCellFilter('level:ERROR AND (', 'pid', '22720', 'include')).toBeNull();
+    expect(appendCellFilter('', 'message', 'first\nsecond', 'include')).toBeNull();
+    expect(isFilterableCellValue('')).toBe(false);
+    expect(isFilterableCellValue('first\r\nsecond')).toBe(false);
+    expect(isFilterableCellValue('single line')).toBe(true);
+  });
+
   it('supports terms, fields, operators, parentheses, and wildcards', () => {
     expect(matches('database connection')).toBe(true);
     expect(matches('level:ERROR AND NOT message:timeout')).toBe(true);

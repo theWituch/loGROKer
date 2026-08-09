@@ -178,3 +178,99 @@ test('reorders columns from the picker and persists or resets the order', async 
   await picker.getByRole('button', { name: 'Reset order' }).click();
   await expect.poll(headerNames).toEqual(initialHeaders);
 });
+
+test('restores the query from storage or URL and navigates query history', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('logroker.searchQuery.v1', 'level:INFO');
+  });
+  await page.goto('/');
+  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+
+  const search = page.getByRole('textbox', { name: 'Szukaj w logach' });
+  await expect(search).toHaveValue('level:INFO');
+  await expect.poll(() => page.evaluate(() => (
+    new URL(window.location.href).searchParams.get('q')
+  ))).toBe('level:INFO');
+
+  await page.goto('/?q=level%3AERROR');
+  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  await expect(search).toHaveValue('level:ERROR');
+  await expect(page.locator('.log-table tbody tr')).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => (
+    localStorage.getItem('logroker.searchQuery.v1')
+  ))).toBe('level:ERROR');
+
+  await search.fill('level:INFO');
+  await search.press('Enter');
+  await expect(search).toHaveValue('level:INFO');
+  await page.goBack();
+  await expect(search).toHaveValue('level:ERROR');
+  await page.goForward();
+  await expect(search).toHaveValue('level:INFO');
+
+  await page.reload();
+  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  await expect(search).toHaveValue('level:INFO');
+
+  await page.goto('/?q=');
+  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  await expect(search).toHaveValue('');
+  await expect.poll(() => page.evaluate(() => (
+    localStorage.getItem('logroker.searchQuery.v1')
+  ))).toBeNull();
+});
+
+test('adds include and exclude filters from hovered cells', async ({ page }) => {
+  await page.setViewportSize({ width: 2200, height: 900 });
+  await page.goto('/');
+  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+
+  const search = page.getByRole('textbox', { name: 'Szukaj w logach' });
+  const errorRow = page.locator('.log-table tbody tr')
+    .filter({ hasText: 'Could not send notification' });
+  const errorLevelCell = errorRow.locator('td[data-field="level"]');
+  const includeError = errorLevelCell.getByRole('button', {
+    name: 'Require level: ERROR',
+  });
+  await expect(includeError).toBeAttached();
+  await expect(includeError.locator('xpath=..')).toHaveCSS('opacity', '0');
+  await errorLevelCell.hover();
+  await expect(includeError.locator('xpath=..')).toHaveCSS('opacity', '1');
+  await includeError.click();
+
+  await expect(search).toHaveValue('"level":"ERROR"');
+  await expect(page.locator('.log-table tbody tr')).toHaveCount(1);
+  await expect(page.locator('.log-table tbody tr.row-selected')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => (
+    new URL(window.location.href).searchParams.get('q')
+  ))).toBe('"level":"ERROR"');
+
+  await page.getByTitle('Clear').click();
+  await expect(search).toHaveValue('');
+  await expect.poll(() => page.locator('.log-table tbody tr').count())
+    .toBeGreaterThan(1);
+
+  const infoRow = page.locator('.log-table tbody tr').filter({ hasText: 'Test message 01' });
+  const infoLevelCell = infoRow.locator('td[data-field="level"]');
+  await infoLevelCell.hover();
+  await infoLevelCell.getByRole('button', { name: 'Exclude level: INFO' }).click();
+  await expect(search).toHaveValue('NOT "level":"INFO"');
+  await expect(page.locator('.log-table tbody tr')).toHaveCount(1);
+  await expect(errorRow).toBeVisible();
+
+  await page.goBack();
+  await expect(search).toHaveValue('');
+  await expect.poll(() => page.locator('.log-table tbody tr').count())
+    .toBeGreaterThan(1);
+  await page.goForward();
+  await expect(search).toHaveValue('NOT "level":"INFO"');
+  await expect(page.locator('.log-table tbody tr')).toHaveCount(1);
+
+  const multilineMessage = errorRow.locator('td[data-field="message"]');
+  await expect(multilineMessage.getByRole('button', { name: /message:/ })).toHaveCount(0);
+  await expect(multilineMessage.getByRole('button', { name: '14 lines' })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  await expect(search).toHaveValue('NOT "level":"INFO"');
+});

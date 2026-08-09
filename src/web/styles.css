@@ -680,6 +680,7 @@ button {
 }
 
 .log-table td {
+  position: relative;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -688,6 +689,13 @@ button {
   border-right: 1px solid rgba(33, 50, 66, 0.5);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cell-value {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .resize-handle {
@@ -859,6 +867,13 @@ button {
   white-space: pre-wrap;
 }
 
+.row-latest td:last-child > .cell-value {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: pre-wrap;
+}
+
 .row-latest .unmatched-cell span {
   overflow: auto;
   text-overflow: clip;
@@ -905,6 +920,72 @@ button {
 
 .multiline-badge:hover {
   background: #1d4d46;
+}
+
+.cell-actions {
+  min-width: 0;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.row-latest .cell-actions {
+  align-self: flex-start;
+}
+
+.cell-filter-actions {
+  width: 0;
+  display: flex;
+  gap: 3px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: width 100ms ease, opacity 100ms ease;
+}
+
+.log-table td:hover .cell-filter-actions,
+.log-table td:focus-within .cell-filter-actions,
+.cell-filter-actions:focus-within {
+  width: 43px;
+  overflow: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cell-filter-button {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--muted);
+  background: #0b1620;
+  border: 1px solid var(--border-bright);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.cell-filter-include:hover,
+.cell-filter-include:focus-visible {
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-color: #28685d;
+  outline: none;
+}
+
+.cell-filter-exclude:hover,
+.cell-filter-exclude:focus-visible {
+  color: #ff9cab;
+  background: rgba(189, 75, 93, 0.18);
+  border-color: #843846;
+  outline: none;
 }
 
 .record-overlay {
